@@ -793,6 +793,8 @@ let STUDENTS=store.get('students',null)||DEFAULT_STUDENTS.map(x=>Object.assign({
 let sid=store.get('sid',null);       // 媽媽：現在在看誰；學生平板：這台是誰
 const curStu=()=>STUDENTS.find(x=>x.id===sid)||STUDENTS[0]||null;
 const kidName=()=>(curStu()||{}).name||'孩子';
+// 白板圖例的藍筆：家長這邊連上時寫連進來的孩子名字，沒連線時只寫「孩子」；孩子自己的平板寫他的名字
+const penKidLabel=()=>role==='mom'&&status!=='on'?'孩子':kidName();
 const curCourse=()=>COURSES[(curStu()||{}).course]||null;
 let TEXT2SP=null;
 function useCourse(){const c=curCourse();UNITS=c?c.units:[];TEXT2SP=null}
@@ -1687,7 +1689,7 @@ function writeHTML(T,st){
     <button class="toggle ${guide?'on':''}" id="guideBtn">${guide?'範字：開':'範字：關'}</button>
     <button class="toggle" id="undo">↶ 復原我的上一筆</button>
     <button class="toggle" id="clr">全部擦掉</button>
-    <span class="legend"><i style="background:var(--pen-me)"></i>${esc(kidName())}</span><span class="legend"><i style="background:var(--pen-mom)"></i>${PN()}</span>
+    <span class="legend"><i style="background:var(--pen-me)"></i>${esc(penKidLabel())}</span><span class="legend"><i style="background:var(--pen-mom)"></i>${PN()}</span>
     <span style="flex:1"></span>
     <div class="pager"><button class="toggle" id="pv" ${i===0?'disabled':''}>←</button><span>${i+1} / ${items.length}</span><button class="toggle" id="nx" ${i===items.length-1?'disabled':''}>→</button></div>
   </div></div>`;
@@ -1962,7 +1964,7 @@ function whiteboardHTML(){
       <button class="toggle ${grid?'on':''}" id="gridBtn">${grid?'四線格：開':'四線格：關'}</button>
       <button class="toggle" id="undo">↶ 復原我的上一筆</button>
       <button class="toggle" id="clr">這頁全部擦掉</button>
-      <span class="legend"><i style="background:var(--pen-me)"></i>${esc(kidName())}</span><span class="legend"><i style="background:var(--pen-mom)"></i>${PN()}</span>
+      <span class="legend"><i style="background:var(--pen-me)"></i>${esc(penKidLabel())}</span><span class="legend"><i style="background:var(--pen-mom)"></i>${PN()}</span>
       <span style="flex:1"></span>
       <div class="pager"><button class="toggle" id="pv" ${i===0?'disabled':''}>←</button><span>第 ${i+1} / ${pages} 頁</span><button class="toggle" id="nx" ${i>=pages-1?'disabled':''}>→</button></div>
       <button class="toggle" id="newp">＋ 新的一頁</button>
