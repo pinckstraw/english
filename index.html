@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>五上英文教室</title>
+<title>英文教室</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Bungee&family=Huninn&family=Noto+Sans+TC:wght@400;700;900&display=swap">
 <style>
@@ -329,6 +329,41 @@ body.night .badge small{color:var(--n-muted)}
 .startpop .kj{width:130px;height:130px;animation:wiggle 1.2s ease-in-out infinite}
 .startpop p{margin:0;font-size:17px;color:var(--muted)}
 .startpop .go{width:100%;height:76px;border-radius:22px;background:var(--coral);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);font:700 26px var(--zh);color:var(--ink);animation:nudge 1.4s ease-in-out infinite}
+.teachbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-block:10px 0;padding-inline:4px}
+.teachbar .lbl{font-weight:700;font-size:15px;color:var(--muted);margin-right:2px}
+.teachbar .crs{margin-left:auto;font-size:13px;color:var(--muted)}
+body.night .teachbar .lbl,body.night .teachbar .crs{color:var(--n-muted)}
+.teachbtn{font:700 17px var(--zh);padding:8px 18px;border-radius:999px;border:3px solid var(--ink);background:var(--card);color:var(--ink);cursor:pointer}
+.teachbtn.cur{background:var(--coral);box-shadow:0 3px 0 var(--ink)}
+body.night .teachbtn{background:transparent;border-color:var(--n-line);color:var(--n-text)}
+body.night .teachbtn.cur{background:var(--n-yellow);border-color:var(--n-yellow);color:#111}
+.startpop .whos{display:grid;gap:12px;width:100%}
+.nocourse{display:grid;justify-items:center;gap:8px;text-align:center;padding:40px 20px 60px;color:var(--ink)}
+.nocourse h2{margin:6px 0 0;font:700 24px var(--zh)}
+.nocourse p{margin:0;max-width:30em;color:var(--muted);font-size:16px}
+.me .stat.who{flex-direction:column;align-items:flex-start;gap:0;line-height:1.2}
+.me .stat.who span{font-size:12px}
+.stulist{display:grid;gap:8px;margin:6px 0 10px}
+.sturow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.6fr) auto;gap:8px;align-items:center;padding:8px;border:2px solid var(--line, #e7cdb8);border-radius:14px;background:#fff8}
+.sturow.cur{border-color:var(--coral);background:#fff}
+.sturow input,.sturow select{min-width:0;font:16px var(--zh);padding:8px 10px;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink)}
+.sturow .stucur{font-weight:700;color:var(--coral);padding:0 8px;white-space:nowrap}
+.sturow .big{padding:8px 14px;min-height:0}
+body.night .nocourse{color:var(--n-text)}body.night .nocourse p{color:var(--n-text);opacity:.75}
+.settings .stulist{margin-right:56px}
+/* 設定視窗只有媽媽看得到：不管在地圖（夜間）還是哪一頁，都用四個主題色 */
+body.night .connect.settings{background:var(--cream);border:3px solid var(--ink);box-shadow:var(--shadow);color:var(--ink);font-family:var(--zh)}
+body.night .settings h3{color:var(--ink)}
+body.night .settings .hint{color:var(--muted)}
+body.night .settings .big{background:var(--coral);color:var(--ink);border-color:var(--ink);box-shadow:var(--shadow);font-family:var(--zh);font-weight:700}
+body.night .settings .big.ghost{background:var(--card);color:var(--ink);border-color:var(--ink)}
+body.night .settings .big:disabled{opacity:.45}
+body.night .settings .code{color:var(--coral);text-shadow:none}
+body.night .settings .linkbox{background:var(--card);border-color:var(--peach);color:var(--ink)}
+body.night .settings input,body.night .settings select{background:var(--card);color:var(--ink);border-color:var(--ink)}
+.settings .sturow{background:#ffd6a659;border-color:var(--peach)}
+.settings .sturow.cur{background:var(--card);border-color:var(--coral)}
+@media (max-width:560px){.sturow{grid-template-columns:1fr 1fr}.sturow .stucourse{grid-column:1/-1}}
 .startpop .go:active{transform:translateY(5px);box-shadow:0 1px 0 var(--ink)}
 @keyframes nudge{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 
@@ -392,7 +427,7 @@ body.night .badge small{color:var(--n-muted)}
 <script>
 /* ===================== 課程內容（翰林 Here We Go 5 上） ===================== */
 const W = (en, zh, pic) => ({en, zh, pic});
-const UNITS = [
+const HANLIN5A = [
  {id:'st', en:'Starter', zh:'開學預備', topics:[
   {id:'num', kind:'vocab', title:'數字 10–100', goal:'聽懂、說出、寫出整十的數字',
    words:[W('ten','十','10'),W('twenty','二十','20'),W('thirty','三十','30'),W('forty','四十','40'),W('fifty','五十','50'),
@@ -520,7 +555,16 @@ const STEP_DEFS = {
     {type:'quiz',mode:'qa',label:'怎麼回答？',min:3,tip:'<b>帶法：</b>你念問句，他選回答，再請他把回答念出來。'},
     {type:'write',label:'寫句子',min:4,items:t.write,tip:'<b>帶法：</b>提醒他：開頭字母大寫、句尾要有 . 或 ?，字和字之間要空一格。'}]
 };
-UNITS.forEach(u=>u.topics.forEach(t=>t.steps=STEP_DEFS[t.kind](t)));
+HANLIN5A.forEach(u=>u.topics.forEach(t=>t.steps=STEP_DEFS[t.kind](t)));
+
+/* ===================== 課程庫 =====================
+   一本課本＝一筆。之後要加別的出版社或別冊，就在這裡多加一本：
+   COURSES['kang-3a']={id:'kang-3a',name:'康軒 Follow Me 3 上',short:'三上英文',grade:3,units:[...]};
+   每個學生在「⚙️ 設定」選自己上哪一本，紀錄會依「學生＋課本」分開存。 */
+const COURSES={
+  'hanlin-5a':{id:'hanlin-5a',name:'翰林 Here We Go 5 上',short:'五上英文',grade:5,units:HANLIN5A},
+};
+let UNITS=[];
 
 /* 原創怪獸：用參數組合出不同的怪獸頭像（SVG）。帥氣版：粗眉、發光眼、尖牙。 */
 const KAIJU = [
@@ -713,10 +757,10 @@ function pickVoice(){const vs=speechSynthesis.getVoices();voice=vs.find(v=>/en[-
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
 let momMute=store.get('momMute',false);
 // 聲音開關（只有媽媽看得到）：單字發音和音樂都用這一個
-const muteLabel=()=>momMute?'🔇 聲音：只有兒子':'🔊 聲音：兩邊';
+const muteLabel=()=>momMute?'🔇 聲音：只有'+kidName():'🔊 聲音：兩邊';
 function toggleMute(rerender=true){
   momMute=!momMute;store.set('momMute',momMute);
-  toast(momMute?'你這台不出聲了，單字和音樂只從兒子的平板播（沒連線時你這台還是會發音）':'單字和音樂兩台平板都會播');
+  toast(momMute?'你這台不出聲了，單字和音樂只從'+kidName()+'的平板播（沒連線時你這台還是會發音）':'單字和音樂兩台平板都會播');
   if(role==='mom'&&S.music){momMute?hidePlayer():showPlayer(S.music)}
   if(rerender)render();
 }
@@ -739,6 +783,24 @@ document.addEventListener('pointerdown',()=>{if(unlocked||!('speechSynthesis' in
 let role = store.get('role', null);      // 'mom' | 'kid' | null
 if(role==='dad'){role='mom';store.set('role','mom')}
 let code = store.get('code', null);
+/* 學生：每個孩子一筆，每台平板綁定一個學生 */
+const DEFAULT_STUDENTS=[{id:'s1',name:'哥哥',grade:5,course:'hanlin-5a'},{id:'s2',name:'弟弟',grade:3,course:''}];
+let STUDENTS=store.get('students',null)||DEFAULT_STUDENTS.map(x=>Object.assign({},x));
+let sid=store.get('sid',null);       // 媽媽：現在在看誰；學生平板：這台是誰
+const curStu=()=>STUDENTS.find(x=>x.id===sid)||STUDENTS[0]||null;
+const kidName=()=>(curStu()||{}).name||'孩子';
+const curCourse=()=>COURSES[(curStu()||{}).course]||null;
+let TEXT2SP=null;
+function useCourse(){const c=curCourse();UNITS=c?c.units:[];TEXT2SP=null}
+const progKey=()=>{const x=curStu();return 'prog:'+(x?x.id:'s1')+':'+((x&&x.course)||'none')};
+let studentsAt=store.get('studentsAt',0);   // 學生名單最後修改時間：試算表、兩台平板之間用比較新的那份
+function saveStudents(){studentsAt=Date.now();store.set('students',STUDENTS);store.set('studentsAt',studentsAt)}
+// 收到別處（試算表或媽媽平板）的學生名單：比較新才採用；回傳 true 表示目前學生的紀錄位置變了
+function adoptStudents(list,at){
+  if(!Array.isArray(list)||!list.length||!(+at>studentsAt))return false;
+  const before=progKey();STUDENTS=list;studentsAt=+at;store.set('students',STUDENTS);store.set('studentsAt',studentsAt);
+  if(progKey()!==before){useCourse();loadP();return true}
+  useCourse();return false}
 let nav = {u:-1,t:0,s:0,sub:0};          // u=-1 地圖，u=-2 徽章
 let S = {picks:{}, tiles:{}, boards:{}, hide:{}, reveal:{}, guide:{}, stamped:{}, round:store.get('round',{})};
 // 每一輪的排列：同一天、同一輪，兩台平板一定一樣；換一天或按「再做一次」就換一組
@@ -750,7 +812,11 @@ function masteryHTML(T){if(T.kind!=='vocab')return '';const tid=tidOf(nav.u,nav.
 
 /* ===================== 學習進度（星星、徽章） ===================== */
 // got：拿到的每一顆星（key → 日期）；topics：完成的主題；badges：徽章；days：有上課的日子
-let P = Object.assign({got:{},topics:{},badges:{},days:{},evo:{}}, store.get('prog',{}));P.evo=P.evo||{};
+let P;
+function loadP(){P=Object.assign({got:{},topics:{},badges:{},days:{},evo:{}},store.get(progKey(),{}));P.evo=P.evo||{}}
+// 舊版只有一個學生的紀錄 → 搬到第一個學生（哥哥・翰林五上）
+(()=>{const old=store.get('prog',null);if(old&&old.got&&!store.get('prog:s1:hanlin-5a',null)){store.set('prog:s1:hanlin-5a',old)}if(old)store.set('prog',null)})();
+useCourse();loadP();
 const starCount=()=>Object.keys(P.got).length;
 const COMMON=KAIJU.filter(k=>k.r===1),RARE=KAIJU.filter(k=>k.r===2),LEGEND=KAIJU.filter(k=>k.r===3);
 // 題目難度：1 短單字、2 中長單字、3 長單字/片語/句子。越難越容易遇到稀有、傳說怪獸
@@ -771,7 +837,6 @@ function allKeys(){const keys=[];
   return keys}
 function textDifficulty(t){t=t.replace(/^a /,'');const letters=t.replace(/[^A-Za-z]/g,'').length;
   if(/[?.!]$/.test(t))return 3;if(t.includes(' ')||letters>=9)return 3;return letters>=6?2:1}
-let TEXT2SP=null;
 function buildText2Species(){
   const texts=[...new Set(allKeys().filter(k=>!k.startsWith('s|')).map(keyText).filter(Boolean))];   // 只用答題拿得到的字
   texts.sort((a,b)=>textDifficulty(b)-textDifficulty(a)||b.length-a.length||hash(a)-hash(b));
@@ -845,7 +910,7 @@ function topicStars(u,t){
 }
 const allTopics=()=>UNITS.flatMap((u,ui)=>u.topics.map((t,ti)=>[ui,ti]));
 // 關主現身條件：這一區每一關都走完，而且單字課的字全部學會（答對過一次）
-function unitMissing(id){const u=UNITS.find(x=>x.id===id);
+function unitMissing(id){const u=UNITS.find(x=>x.id===id);if(!u)return {topics:1,words:1};
   const topics=u.topics.filter(t=>!P.topics[u.id+'-'+t.id]).length;
   const words=u.topics.filter(t=>t.kind==='vocab').reduce((n,t)=>n+t.words.filter(w=>!isMastered(u.id+'-'+t.id,w.en,true)).length,0);
   return {topics,words}}
@@ -872,16 +937,16 @@ const BADGES=[
   {id:'dexall',i:'🌈',n:'圖鑑全收集',d:'20 種怪獸全部收集到',ok:()=>Object.keys(dexCounts()).length>=KAIJU.length},
   {id:'streak3',i:'🔥',n:'連續 3 天',d:'連續 3 天都有上課',ok:()=>streak()>=3},
   {id:'streak7',i:'🏆',n:'連續 7 天',d:'連續 7 天都有上課',ok:()=>streak()>=7},
-  {id:'all',i:'👑',n:'五上全破關',d:'完成全部主題',ok:()=>allTopics().every(([u,t])=>P.topics[tidOf(u,t)])}
+  {id:'all',i:'👑',n:'全部破關',d:'完成全部主題',ok:()=>allTopics().every(([u,t])=>P.topics[tidOf(u,t)])}
 ];
 const UNIT_BADGE={st:'st',u1:'u1',u2:'u2',u3:'u3',u4:'u4',xm:'xm'};
 
 let celeQueue=[];
 function grantBadge(id){if(P.badges[id])return false;P.badges[id]=today();const b=BADGES.find(x=>x.id===id);logEv('獲得徽章：'+b.n);celeQueue.push(id);return true}
-function checkBadges(){BADGES.forEach(b=>{if(!P.badges[b.id]&&b.ok())grantBadge(b.id)})}
+function checkBadges(){if(!UNITS.length)return;BADGES.forEach(b=>{if(!P.badges[b.id]&&b.ok())grantBadge(b.id)})}
 function progChanged(){
   checkBadges();
-  store.set('prog',P);
+  store.set(progKey(),P);
   send({t:'prog',P});
   scheduleSave();
   updateCounters();
@@ -900,7 +965,7 @@ function mergeProg(inc){
     for(const k in src){if(!P[f][k]){P[f][k]=src[k];changed=true;if(f==='badges')celeQueue.push(k);if(f==='got')newGot.push(k)}}});
   if(inc.evo&&typeof inc.evo==='object')for(const k in inc.evo){const v=+inc.evo[k]||1;if(v>(P.evo[k]||1)){P.evo[k]=v;changed=true;if(booted&&status==='on')evoAnim(k,v)}}
   if(booted&&status==='on'&&newGot.length&&newGot.length<=2)newGot.forEach(k=>catchAnim(k));
-  if(changed){checkBadges();store.set('prog',P);scheduleSave();updateCounters();showCele();if(nav.u<0)render()}
+  if(changed){checkBadges();store.set(progKey(),P);scheduleSave();updateCounters();showCele();if(nav.u<0)render()}
   return changed;
 }
 function showCele(){
@@ -928,24 +993,37 @@ function summary(){
   const topics=allTopics().map(([u,t])=>{const U=UNITS[u],T=U.topics[t],r=topicStars(u,t),tid=tidOf(u,t);
     return [U.en+' '+U.zh,T.title,'★'.repeat(r.rate)+'☆'.repeat(3-r.rate),r.got+' / '+r.all,P.topics[tid]||'']});
   const badges=BADGES.map(b=>[b.i+' '+b.n,b.d,P.badges[b.id]||'']);
-  const overview=[['怪獸總數',starCount()],['進化的怪獸',Object.values(P.evo).filter(v=>v>=2).length],['異色怪獸',KAIJU.filter(k=>shinyOwned(k.id)).length],['圖鑑種類',Object.keys(dexCounts()).length+' / '+KAIJU.length],['媽媽印章',stampCount()],['完成主題',Object.keys(P.topics).length+' / '+allTopics().length],
+  const overview=[['學生',kidName()],['課程',(curCourse()||{}).name||'尚未安排'],['怪獸總數',starCount()],['進化的怪獸',Object.values(P.evo).filter(v=>v>=2).length],['異色怪獸',KAIJU.filter(k=>shinyOwned(k.id)).length],['圖鑑種類',Object.keys(dexCounts()).length+' / '+KAIJU.length],['媽媽印章',stampCount()],['完成主題',Object.keys(P.topics).length+' / '+allTopics().length],
     ['徽章',Object.keys(P.badges).length+' / '+BADGES.length],['連續上課天數',streak()],['總上課天數',Object.keys(P.days).length],['最後更新',new Date().toLocaleString('zh-TW')]];
   return {topics,badges,overview};
 }
+function sheetMeta(){const x=curStu()||{},c=curCourse();return {key:progKey().slice(5),student:{id:x.id,name:x.name||''},course:{id:c?c.id:'',name:c?c.name:''},students:STUDENTS,studentsAt}}
 async function saveSheet(){
+  clearTimeout(saveT);
   if(!shouldSave()){pendingEv=[];return}
   const ev=pendingEv;pendingEv=[];sheetState='saving';renderSheetState();
+  const key=progKey(),body=JSON.stringify(Object.assign(sheetMeta(),{state:P,summary:curCourse()?summary():null,events:ev}));
   try{
-    const r=await fetch(sheetURL,{method:'POST',body:JSON.stringify({state:P,summary:summary(),events:ev})});
-    const j=await r.json();if(j&&j.state)mergeProg(j.state);
+    const r=await fetch(sheetURL,{method:'POST',body});
+    const j=await r.json();if(j&&j.students)rosterFromSheet(j.students,j.studentsAt);if(j&&j.state&&key===progKey())mergeProg(j.state);
     sheetState='ok';lastSaved=new Date();
   }catch(e){sheetState='err';pendingEv=ev.concat(pendingEv)}
   renderSheetState();
 }
+function rosterFromSheet(list,at){
+  const moved=adoptStudents(list,at);
+  if(+at===studentsAt){if(role==='mom')send({t:'roster',list:STUDENTS,at:studentsAt});if(nav.u===-1)render()}
+  return moved}
 async function loadSheet(){
   if(!sheetURL)return false;
-  try{const r=await fetch(sheetURL+(sheetURL.includes('?')?'&':'?')+'action=load');const j=await r.json();
-    if(j&&j.ok){if(j.state)mergeProg(j.state);sheetState='ok';renderSheetState();return true}}catch(e){}
+  const key=progKey();
+  try{const r=await fetch(sheetURL+(sheetURL.includes('?')?'&':'?')+'action=load&key='+encodeURIComponent(key.slice(5)));const j=await r.json();
+    if(j&&j.ok){
+      if(j.students&&rosterFromSheet(j.students,j.studentsAt))return loadSheet();   // 換成別的學生/課本了：再讀一次他的紀錄
+      if(j.state&&key===progKey())mergeProg(j.state);
+      if(!(+j.studentsAt>=studentsAt)&&studentsAt&&shouldSave())scheduleSave();   // 這台的名單比較新：存回試算表
+      if(role==='kid'&&!store.get('sid',null)&&status!=='on')showWhoPop(kidPick);   // 新平板：問是誰，舊紀錄從試算表拿回來
+      sheetState='ok';renderSheetState();return true}}catch(e){}
   sheetState='err';renderSheetState();return false;
 }
 function renderSheetState(){
@@ -955,14 +1033,46 @@ function renderSheetState(){
     :sheetState==='saving'?'儲存中…':sheetState==='err'?'<span class="err-text">連不上試算表，請檢查網址</span>':'試算表已設定';
 }
 
+// 換學生：先把目前這位的進度存好，再載入另一位的
+function switchStudent(id){
+  if(!STUDENTS.some(x=>x.id===id))return false;
+  const same=id===(curStu()||{}).id&&store.get('sid',null)===id;
+  if(same)return false;
+  if(sheetURL&&shouldSave())saveSheet();
+  sid=id;store.set('sid',id);useCourse();loadP();
+  checkBadges();celeQueue=[];nav={u:-1,t:0,s:0,sub:0};
+  loadSheet();
+  return true;
+}
+// 媽媽選「現在要陪誰」：連線中換人，會請原本那個孩子先自己練習
+function teach(id){
+  if(id===(curStu()||{}).id)return;
+  if(conn){send({t:'busy',name:(STUDENTS.find(x=>x.id===id)||{}).name||''});const c=conn;conn=null;setTimeout(()=>{try{c.close()}catch(e){}},400);setStatus('wait')}
+  switchStudent(id);busyTold={};render();toast('現在陪 '+kidName()+'，請他打開英文教室');
+}
+// 學生平板第一次連上：問「你是誰？」
+function showWhoPop(onPick){
+  if(document.querySelector('.startpop.who'))return;
+  const o=document.createElement('div');o.className='startpop who';
+  o.innerHTML=`<div class="box"><div class="bar"><span>你是誰？</span></div>
+    <div class="in">${kaijuSVG(MASCOT,{size:110})}<div class="whos">${STUDENTS.map(x=>`<button class="go" data-sid="${esc(x.id)}">${esc(x.name)}</button>`).join('')}</div></div></div>`;
+  document.body.appendChild(o);
+  o.querySelectorAll('[data-sid]').forEach(b=>b.onclick=()=>{o.remove();onPick(b.dataset.sid)});
+}
+function kidPick(id){switchStudent(id);sid=id;store.set('sid',id);render();if(status==='on')send({t:'iam',sid:id,P})}
+function kidIdentify(){
+  const go=id=>{const ch=switchStudent(id);sid=id;store.set('sid',id);if(ch)render();send({t:'iam',sid:id,P})};   // 沒換人就不重畫，避免打斷正在寫的字
+  if(store.get('sid',null)&&STUDENTS.some(x=>x.id===sid))go(sid);else showWhoPop(go);
+}
+
 /* ===================== 連線（PeerJS，不用帳號） ===================== */
 const PREFIX='hlwow5-';
-let peer=null, conn=null, status='off', retryT=null;
+let peer=null, conn=null, status='off', retryT=null, busyName='', busyTold={};
 function setStatus(s){const was=status;status=s;renderChip();if(role==='kid'&&nav.u===-1&&(was==='on')!==(s==='on'))render()}
 function send(m){if(conn&&conn.open){try{conn.send(m)}catch(e){}}}
 function wire(c){
   c.on('data',onMsg);
-  c.on('close',()=>{if(conn===c){conn=null;setStatus(role==='mom'?'wait':'off');if(role==='kid')scheduleRetry()}});
+  c.on('close',()=>{if(conn===c){conn=null;if(status!=='busy')setStatus(role==='mom'?'wait':'off');if(role==='kid')scheduleRetry()}});
   c.on('error',()=>{});
 }
 function startMom(){
@@ -973,9 +1083,19 @@ function startMom(){
   peer=new Peer(PREFIX+code,{debug:0});
   setStatus('wait');
   peer.on('connection',c=>{
-    if(conn&&conn!==c)try{conn.close()}catch(e){}
-    conn=c;wire(c);
-    c.on('open',()=>{setStatus('on');toast('兒子已加入教室');send({t:'sync',nav,S,P,sheet:sheetURL})});
+    // 先不換掉目前的連線：等這台說自己是誰，是媽媽正在陪的那個孩子才接進來
+    const tell=m=>{try{c.send(m)}catch(e){}};
+    c.on('data',m=>{
+      if(c===conn)return onMsg(m);
+      if(!m||typeof m!=='object')return;
+      if(m.t==='hello')tell({t:'roster',list:STUDENTS,at:studentsAt});
+      else if(m.t==='iam'){
+        if(m.sid===(curStu()||{}).id){if(conn&&conn!==c)try{conn.close()}catch(e){}conn=c;onMsg(m)}
+        else{const who=STUDENTS.find(x=>x.id===m.sid);tell({t:'busy',name:kidName()});setTimeout(()=>{try{c.close()}catch(e){}},400);
+          if(who&&!busyTold[who.id]){busyTold[who.id]=1;toast(who.name+'也打開了，現在在陪'+kidName()+'，他會先自己練習')}}}
+    });
+    c.on('close',()=>{if(conn===c){conn=null;setStatus('wait')}});
+    c.on('error',()=>{});
   });
   peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
   peer.on('error',e=>{
@@ -988,11 +1108,11 @@ function startKid(c){
   if(typeof Peer==='undefined'){toast('連線元件沒有載入，請確認網路後重新整理');return}
   code=c;store.set('code',c);role='kid';store.set('role','kid');
   if(peer)peer.destroy();
-  setStatus('wait');
+  if(status!=='busy')setStatus('wait');
   peer=new Peer({debug:0});
   peer.on('open',()=>{const cc=peer.connect(PREFIX+c,{reliable:true});conn=cc;wire(cc);
-    cc.on('open',()=>{setStatus('on');send({t:'prog',P});showStartPop()})});
-  peer.on('error',e=>{if(e.type==='peer-unavailable'){setStatus('nomom');scheduleRetry()}else{setStatus('err');scheduleRetry()}});
+    cc.on('open',()=>{send({t:'hello'})})});
+  peer.on('error',e=>{if(e.type==='peer-unavailable'){busyName='';setStatus('nomom');scheduleRetry();if(!store.get('sid',null)&&sheetURL)loadSheet()}else{setStatus('err');scheduleRetry()}});
   peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
   render();
 }
@@ -1009,12 +1129,20 @@ function showStartPop(){
     o.remove();send({t:'ready'});
   };
 }
-function scheduleRetry(){clearTimeout(retryT);retryT=setTimeout(()=>{if(role==='kid'&&status!=='on'&&code)startKid(code)},4000)}
+function scheduleRetry(){clearTimeout(retryT);retryT=setTimeout(()=>{if(role==='kid'&&status!=='on'&&code)startKid(code)},status==='busy'?15000:4000)}
 
 function onMsg(m){
   if(!m||typeof m!=='object')return;
   switch(m.t){
-    case 'sync': nav=m.nav;S=Object.assign({stamped:{}},m.S);if(S.music)setTimeout(()=>showPlayer(S.music),300);if(typeof m.sheet==='string'&&m.sheet){sheetURL=m.sheet;store.set('sheet',sheetURL)}mergeProg(m.P);render();break;
+    case 'busy': if(role==='kid'){const first=status!=='busy';busyName=String(m.name||'');setStatus('busy');if(first)toast(busyName?'媽媽現在在陪'+busyName+'，你可以先自己練習':'你可以先自己練習')}break;
+    case 'hello': if(role==='mom')send({t:'roster',list:STUDENTS,at:studentsAt});break;
+    case 'roster': if(role==='kid'&&Array.isArray(m.list)&&m.list.length){adoptStudents(m.list,m.at||1);kidIdentify()}break;
+    case 'iam': if(role==='mom'&&m.sid){if(!STUDENTS.some(x=>x.id===m.sid))break;
+        const changed=switchStudent(m.sid);mergeProg(m.P);setStatus('on');toast(kidName()+'已加入教室'+(changed?'，已切換到'+kidName()+'的紀錄':''));
+        send({t:'sync',nav,S,P,sheet:sheetURL,list:STUDENTS,at:studentsAt});render()}break;
+    case 'sync': if(role==='kid'){busyName='';setStatus('on');showStartPop()}
+      if(Array.isArray(m.list)&&m.list.length)adoptStudents(m.list,m.at||1);
+      nav=m.nav;S=Object.assign({stamped:{}},m.S);if(S.music)setTimeout(()=>showPlayer(S.music),300);if(typeof m.sheet==='string'&&m.sheet){sheetURL=m.sheet;store.set('sheet',sheetURL)}mergeProg(m.P);render();break;
     case 'nav': nav=m.nav;render();break;
     case 'prog': mergeProg(m.P);break;
     case 'music':
@@ -1025,8 +1153,8 @@ function onMsg(m){
         if(m.op==='resume'){if(a){const p=a.play();if(p&&p.catch)p.catch(()=>{})}else ytCmd('playVideo')}}
       renderPenbar();break;
     case 'mstate': S.musicState=m.v;{const el=document.getElementById('mState');if(el)el.textContent=musicStateText[m.v]||''}
-      if(role==='mom'&&m.v==='needtap')toast('兒子那邊要點一下播放鍵，請他點影片中間的播放鍵');break;
-    case 'ready': if(role==='mom')toast('兒子按了「閃現到媽媽旁邊！」，他的平板可以發出聲音了');break;
+      if(role==='mom'&&m.v==='needtap')toast(kidName()+'那邊要點一下播放鍵，請他點影片中間的播放鍵');break;
+    case 'ready': if(role==='mom')toast(kidName()+'按了「閃現到媽媽旁邊！」，他的平板可以發出聲音了');break;
     case 'sheet': if(typeof m.v==='string'){sheetURL=m.v;store.set('sheet',m.v)}break;
     case 'ev': if(Array.isArray(m.e))pendingEv.push(m.e);scheduleSave();break;
     case 'say': say(String(m.text));flash(m.hk);break;
@@ -1052,7 +1180,7 @@ function flash(hk){if(!hk)return;const el=document.querySelector(`[data-hk="${hk
 /* ===================== 畫面 ===================== */
 function renderChip(){
   const el=$('#chip');if(!el)return;
-  const map={off:['','未連線'],wait:['wait',role==='mom'?`等兒子加入（代碼 ${code}）`:'連線中…'],on:['on',role==='mom'?'兒子已連線':'已連上媽媽'],nomom:['','自己練習中'],err:['wait','網路不穩，重新連線中…']};
+  const map={off:['','未連線'],wait:['wait',role==='mom'?`等孩子加入（代碼 ${code}）`:'連線中…'],on:['on',role==='mom'?kidName()+'已連線':'已連上媽媽'],nomom:['','自己練習中'],busy:['','自己練習中'],err:['wait','網路不穩，重新連線中…']};
   const [c,t]=map[status]||map.off;el.className='chip '+c;el.innerHTML=`<span class="dot"></span>${esc(t)}`;
 }
 function render(){document.body.classList.toggle('night',nav.u===-1||nav.u===-2);renderInner();inkFit();renderPenbar()}
@@ -1100,12 +1228,9 @@ function renderInner(){
 
 function connectPanel(){
   const params=new URLSearchParams(location.search);const urlRoom=params.get('room');
-  if(role==='mom'&&peer){
-    const link=location.origin+location.pathname+'?room='+code;
-    return `<div class="connect"><h3>教室已開好，把連結傳給兒子</h3>
-      <div class="row"><span class="code">${esc(code)}</span><span class="hint">兒子打開連結，或在「我是學生」輸入這組代碼</span></div>
-      <div class="row"><div class="linkbox" id="link">${esc(link)}</div><button class="big ghost" id="copy">複製連結</button></div>
-      <p class="hint">連上後，誰翻頁另一邊都會跟著翻；寫字板上寫的字兩邊都看得到。</p></div>`;
+  if(role==='mom'&&peer){   // 首頁只留一行「現在要陪」；代碼和連結放在「⚙️ 設定」
+    const c=curCourse();
+    return `<div class="teachbar"><span class="lbl">現在要陪</span>${STUDENTS.map(x=>`<button class="teachbtn ${x.id===(curStu()||{}).id?'cur':''}" data-teach="${esc(x.id)}">${esc(x.name)}</button>`).join('')}<span class="crs">${esc(c?c.name:'還沒安排課程')}</span></div>`;
   }
   if(role==='kid'&&status==='on')return '';   // 已連上：右上角顯示「已連上媽媽」就夠了
   if(role==='kid')return '';   // 兒子自己複習：不放任何面板，打開就是作戰地圖
@@ -1249,9 +1374,13 @@ function mapSVG(){
   return `<div class="mapbox n"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="url(#sky)"/>${head}${bg}${road}${out}</svg></div>`;
 }
 function homeHTML(){
-  return `<div class="top"><div class="crumb home"><b id="titleLock">五上英文教室</b></div><button class="iconbtn" id="wbBtn">📝 白板</button>${role==='kid'?'':'<button class="iconbtn" id="setBtn">⚙️ 設定</button>'}<span class="chip" id="chip"></span></div>
+  const c=curCourse(),stu=curStu()||{};
+  const top=`<div class="top"><div class="crumb home"><b id="titleLock">${esc(c?c.short+'教室':'英文教室')}</b></div><button class="iconbtn" id="wbBtn">📝 白板</button>${role==='kid'?'':'<button class="iconbtn" id="setBtn">⚙️ 設定</button>'}<span class="chip" id="chip"></span></div>
   ${connectPanel()}
-  <div id="settingsBox" hidden></div>
+  <div id="settingsBox" hidden></div>`;
+  if(!c)return top+`<div class="nocourse">${kaijuSVG(MASCOT,{size:120})}<h2>${esc(stu.name||'')}的課程還沒開始</h2>
+    <p>${role==='kid'?'等媽媽幫你安排課本，就可以開始抓怪獸了！現在可以先用「📝 白板」寫寫看。':'到「⚙️ 設定 → 學生」幫他選一本課本，地圖就會出現。'}</p></div>`;
+  return top+`
   <div class="me">
     <div class="stat">${kaijuSVG(MASCOT,{size:44})}<b data-stars>${starCount()}</b><span>隻怪獸</span></div>
     <div class="stat"><span style="font-size:26px">📖</span><b>${Object.keys(dexCounts()).length}</b><span>/ ${KAIJU.length} 種</span></div>
@@ -1259,13 +1388,33 @@ function homeHTML(){
     <span class="sp"></span><button class="big" id="toBadges">📁 怪獸檔案</button>
   </div>
   ${mapSVG()}
-  <p class="hint" style="padding-block:0 30px;text-align:center">內容依翰林版五上課程計畫整理。發音用平板內建語音，第一次按可能要等一下才有聲音。</p>`;
+  <p class="hint" style="padding-block:0 30px;text-align:center">內容依${esc(c.name)}課程計畫整理。發音用平板內建語音，第一次按可能要等一下才有聲音。</p>`;
+}
+const GRADES=[1,2,3,4,5,6];
+function studentsHTML(){
+  const locked=role==='mom'&&status==='on';
+  return `<h3>學生</h3>
+    <p class="hint">每個孩子的怪獸、學會的單字、進化完全分開記錄。孩子用自己的平板打開連結時，第一次會問「你是誰？」。要陪哪個孩子，在首頁的「現在要陪」選。</p>
+    <div class="stulist">${STUDENTS.map(x=>{const cur=x.id===(curStu()||{}).id;return `<div class="sturow ${cur?'cur':''}" data-sid="${esc(x.id)}">
+      <input class="stuname" value="${esc(x.name)}" maxlength="8" aria-label="名字">
+      <select class="stugrade" aria-label="年級">${GRADES.map(g=>`<option value="${g}" ${+x.grade===g?'selected':''}>${g} 年級</option>`).join('')}</select>
+      <select class="stucourse" aria-label="課本"><option value="">還沒安排課程</option>${Object.values(COURSES).map(c=>`<option value="${c.id}" ${x.course===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+      ${cur?'<span class="stucur">目前</span>':`<button class="big ghost stuuse" ${locked?'disabled':''}>切換</button>`}</div>`}).join('')}</div>
+    <div class="row"><button class="big ghost" id="stuAdd">＋ 新增學生</button>${locked?`<span class="hint">正在陪${esc(kidName())}；要換人請用首頁的「現在要陪」。</span>`:''}</div>`;
+}
+function linkHTML(){
+  if(role!=='mom'||!code)return '';
+  const link=location.origin+location.pathname+'?room='+code+(sheetURL?'&sheet='+encodeURIComponent(sheetURL):'');
+  return `<h3>教室連結（傳給孩子一次就好）</h3>
+    <div class="row"><span class="code">${esc(code)}</span><span class="hint">兩個孩子用同一個連結；第一次打開會問他是誰。也可以在「我是學生」輸入這組代碼。</span></div>
+    <div class="row"><div class="linkbox" id="link">${esc(link)}</div><button class="big ghost" id="copy">複製連結</button></div>
+    <p class="hint">首頁「現在要陪」選到的孩子才會連進來；另一個打開的話會先自己練習，紀錄各自保存。連上後誰翻頁另一邊都會跟著翻，寫字板兩邊都看得到。</p>`;
 }
 function settingsHTML(){
-  return `<div class="connect settings"><h3>聲音</h3>
-    <div class="row"><button class="big ghost" id="setMute">${muteLabel()}</button><span class="hint">單字發音和音樂都照這個設定。選「只有兒子」時，你透過 FaceTime 聽他那邊。</span></div>
+  return `<div class="connect settings">${linkHTML()}${studentsHTML()}<h3>聲音</h3>
+    <div class="row"><button class="big ghost" id="setMute">${muteLabel()}</button><span class="hint">單字發音和音樂都照這個設定。選「只有孩子」時，只從孩子的平板出聲，你透過 FaceTime 聽他那邊。</span></div>
     <h3>Google 試算表（保存學習進度）</h3>
-    <p class="hint">貼上 Apps Script 部署後拿到的網址（https://script.google.com/macros/s/…/exec）。媽媽設定好之後，兒子連線時會自動帶過去。</p>
+    <p class="hint">貼上 Apps Script 部署後拿到的網址（https://script.google.com/macros/s/…/exec）。媽媽設定好之後，孩子連線時會自動帶過去。每個孩子在試算表裡有自己的分頁。</p>
     <input id="sheetIn" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(sheetURL)}">
     <div class="row"><button class="big" id="sheetSave">儲存並測試</button><span class="hint" id="sheetState"></span></div>
     <div class="row" style="justify-content:flex-end"><button class="big ghost" id="setClose">關閉設定</button></div></div>`;
@@ -1275,21 +1424,26 @@ function bindHome(){
   const tl=document.getElementById('titleLock');
   if(tl&&role==='kid'){let t=null;
     tl.onpointerdown=()=>{t=setTimeout(()=>{const box=document.getElementById('settingsBox');box.hidden=false;
-      box.innerHTML=`<div class="connect"><h3>這台平板要改成媽媽模式嗎？</h3><p class="hint">改了之後，這台會變成開教室的那一台，看得到帶法提示和蓋章按鈕。</p>
-        <div class="row"><button class="big" id="toMomYes">確定改成媽媽模式</button><button class="big ghost" id="toMomNo">取消</button></div></div>`;
+      box.innerHTML=`<div class="connect settings"><h3>這台平板要改成媽媽模式嗎？</h3><p class="hint">改了之後，這台會變成開教室的那一台，看得到帶法提示和蓋章按鈕。</p>
+        <div class="row"><button class="big" id="toMomYes">確定改成媽媽模式</button><button class="big ghost" id="toMomNo">取消</button></div>
+        <h3>這台平板換人用</h3><p class="hint">現在是「${esc(kidName())}」的平板。換人之後，下次連上教室會重新問「你是誰？」。</p>
+        <div class="row"><button class="big ghost" id="whoAgain">重新選是誰</button></div></div>`;
+      document.getElementById('whoAgain').onclick=()=>{box.hidden=true;showWhoPop(kidPick)};
       document.getElementById('toMomYes').onclick=()=>{if(peer)try{peer.destroy()}catch(e){}peer=null;conn=null;role=null;store.set('role',null);setStatus('off');render()};
       document.getElementById('toMomNo').onclick=()=>{box.hidden=true}},3000)};
     const stop=()=>clearTimeout(t);tl.onpointerup=stop;tl.onpointerleave=stop;tl.onpointercancel=stop}
   document.querySelectorAll('.node[data-u]').forEach(b=>b.onclick=()=>go({u:+b.dataset.u,t:+b.dataset.t,s:0,sub:0}));
   const q=id=>document.getElementById(id);
-  if(q('asMom'))q('asMom').onclick=startMom;
+  if(q('asMom'))q('asMom').onclick=()=>{startMom();openSettings();toast('教室開好了，按「複製連結」傳給孩子')};
   if(q('asKid'))q('asKid').onclick=()=>{const v=q('codein').value.trim();if(!/^\d{6}$/.test(v)){toast('請輸入 6 位數代碼');return}startKid(v)};
   if(q('soloGo'))q('soloGo').onclick=()=>{const b=q('soloGo');go({u:+b.dataset.u,t:+b.dataset.t,s:0,sub:0})};
   if(q('joinUrl'))q('joinUrl').onclick=()=>startKid(new URLSearchParams(location.search).get('room'));
-  if(q('copy'))q('copy').onclick=()=>{const t=q('link').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製，貼到 LINE 傳給兒子')).catch(()=>{const r=document.createRange();r.selectNodeContents(q('link'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('已選取連結，請按「拷貝」')})};
-  q('toBadges').onclick=()=>go({u:-2});
+  document.querySelectorAll('[data-teach]').forEach(b=>b.onclick=()=>teach(b.dataset.teach));
+  if(q('toBadges'))q('toBadges').onclick=()=>go({u:-2});
   q('wbBtn').onclick=openWB;
-  if(q('setBtn'))q('setBtn').onclick=()=>{const box=q('settingsBox');box.hidden=!box.hidden;if(!box.hidden){box.innerHTML=settingsHTML();renderSheetState();
+  if(q('setBtn'))q('setBtn').onclick=()=>{const box=q('settingsBox');if(box.hidden)openSettings();else box.hidden=true};
+}
+function openSettings(){const q=id=>document.getElementById(id);const box=q('settingsBox');if(!box)return;box.hidden=false;{box.innerHTML=settingsHTML();renderSheetState();bindStudents();if(q('copy'))q('copy').onclick=()=>{const t=q('link').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製，貼到 LINE 傳給孩子')).catch(()=>{const r=document.createRange();r.selectNodeContents(q('link'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('已選取連結，請按「拷貝」')})};
     q('setMute').onclick=()=>{toggleMute(false);const b2=document.getElementById('setMute');if(b2){b2.textContent=muteLabel();b2.classList.remove('flashok');void b2.offsetWidth;b2.classList.add('flashok')}};
     q('setClose').onclick=()=>{q('settingsBox').hidden=true};
     q('sheetSave').onclick=async()=>{const v=q('sheetIn').value.trim();
@@ -1297,7 +1451,25 @@ function bindHome(){
       sheetURL=v;store.set('sheet',v);send({t:'sheet',v});
       if(!v){renderSheetState();return}
       sheetState='saving';renderSheetState();
-      if(await loadSheet()){await saveSheet();toast('試算表連上了')}}}};
+      if(await loadSheet()){await saveSheet();toast('試算表連上了')}}}
+}
+function bindStudents(){
+  const reopen=()=>{render();openSettings();const st=document.querySelector('.settings');if(st)st.scrollIntoView({block:'start'})};
+  const pushRoster=()=>{saveStudents();send({t:'roster',list:STUDENTS,at:studentsAt});if(shouldSave())scheduleSave()};
+  document.querySelectorAll('.sturow').forEach(row=>{
+    const x=STUDENTS.find(y=>y.id===row.dataset.sid);if(!x)return;const cur=x.id===(curStu()||{}).id;
+    row.querySelector('.stuname').onchange=e=>{const v=e.target.value.trim();if(!v){e.target.value=x.name;return}x.name=v;pushRoster();if(cur)reopen()};
+    row.querySelector('.stugrade').onchange=e=>{x.grade=+e.target.value;pushRoster()};
+    row.querySelector('.stucourse').onchange=e=>{
+      if(cur&&sheetURL&&shouldSave())saveSheet();
+      x.course=e.target.value;pushRoster();
+      if(cur){useCourse();loadP();checkBadges();celeQueue=[];nav={u:-1,t:0,s:0,sub:0};send({t:'sync',nav,S,P,sheet:sheetURL,list:STUDENTS,at:studentsAt});loadSheet()}
+      toast(x.name+'：'+(COURSES[x.course]?COURSES[x.course].name:'還沒安排課程'));if(cur)reopen()};
+    const use=row.querySelector('.stuuse');if(use)use.onclick=()=>{switchStudent(x.id);toast('切換到 '+x.name);reopen()};
+  });
+  document.getElementById('stuAdd').onclick=()=>{let n=1;while(STUDENTS.some(y=>y.id==='s'+n))n++;
+    STUDENTS.push({id:'s'+n,name:'學生'+n,grade:3,course:''});pushRoster();reopen();
+    const rows=document.querySelectorAll('.stuname');const last=rows[rows.length-1];if(last){last.focus();last.select()}};
 }
 let dexTab='dex';const shinyView=new Set(),weakOpen=new Set();
 function badgesHTML(){
@@ -1482,7 +1654,7 @@ function writeHTML(T,st){
     <button class="toggle ${guide?'on':''}" id="guideBtn">${guide?'範字：開':'範字：關'}</button>
     <button class="toggle" id="undo">↶ 復原我的上一筆</button>
     <button class="toggle" id="clr">全部擦掉</button>
-    <span class="legend"><i style="background:var(--pen-me)"></i>兒子</span><span class="legend"><i style="background:var(--pen-mom)"></i>媽媽</span>
+    <span class="legend"><i style="background:var(--pen-me)"></i>${esc(kidName())}</span><span class="legend"><i style="background:var(--pen-mom)"></i>媽媽</span>
     <span style="flex:1"></span>
     <div class="pager"><button class="toggle" id="pv" ${i===0?'disabled':''}>←</button><span>${i+1} / ${items.length}</span><button class="toggle" id="nx" ${i===items.length-1?'disabled':''}>→</button></div>
   </div></div>`;
@@ -1673,28 +1845,28 @@ function parseMusic(url){
   if(/^https?:\/\/\S+\.(mp3|m4a|aac|wav|ogg)(\?\S*)?$/i.test(url))return {kind:'audio',src:url};
   return null;
 }
-const musicStateText={playing:'▶ 兒子那邊正在播放',paused:'⏸ 已暫停',ended:'播完了',needtap:'兒子那邊要點一下播放鍵（第一次可能會這樣）',loading:'正在打開…'};
+const musicStateText={playing:'▶ 孩子那邊正在播放',paused:'⏸ 已暫停',ended:'播完了',needtap:'孩子那邊要點一下播放鍵（第一次可能會這樣）',loading:'正在打開…'};
 function openMusicPanel(){
   document.querySelectorAll('.mpanel').forEach(e=>e.remove());
   const o=document.createElement('div');o.className='overlay mpanel';
   const m=S.music;
-  o.innerHTML=`<div class="mbox"><div class="mhead">🎵 播音樂給兒子聽</div>
+  o.innerHTML=`<div class="mbox"><div class="mhead">🎵 播音樂給${esc(kidName())}聽</div>
     ${m?`<div class="mnow"><b>正在播放</b><span id="mState">${esc(musicStateText[S.musicState]||musicStateText.loading)}</span></div>
       <div class="row"><button class="big ghost" id="mPause">⏸ 暫停</button><button class="big ghost" id="mResume">▶ 繼續</button><button class="big" id="mStop">■ 停止</button></div>
       <p class="hint">要換一首，直接在下面貼新的連結。</p>`:''}
     <div class="row"><input id="mUrl" type="url" placeholder="貼上 YouTube 連結" autocomplete="off"><button class="big ghost" id="mPaste">📋 貼上</button></div>
-    <div class="row"><button class="big" id="mPlay">播放給兒子聽</button><button class="big ghost" id="mClose">關閉</button></div>
-    <p class="hint">${momMute?'目前聲音設定是「只有兒子」：音樂只從他的平板播，你透過 FaceTime 聽。':'目前聲音設定是「兩邊」：你這台也會一起播。'}要改的話，到首頁的「⚙️ 設定」切換。支援 YouTube 連結或 mp3 檔的網址。</p></div>`;
+    <div class="row"><button class="big" id="mPlay">播放給${esc(kidName())}聽</button><button class="big ghost" id="mClose">關閉</button></div>
+    <p class="hint">${momMute?'目前聲音設定是「只有'+kidName()+'」：音樂只從他的平板播，你透過 FaceTime 聽。':'目前聲音設定是「兩邊」：你這台也會一起播。'}要改的話，到首頁的「⚙️ 設定」切換。支援 YouTube 連結或 mp3 檔的網址。</p></div>`;
   document.body.appendChild(o);
   const q=id=>o.querySelector('#'+id);
   q('mClose').onclick=()=>o.remove();
   o.onclick=e=>{if(e.target===o)o.remove()};
   q('mPaste').onclick=async()=>{try{q('mUrl').value=await navigator.clipboard.readText()}catch(e){q('mUrl').focus();toast('請長按輸入框，選「貼上」')}};
   q('mPlay').onclick=()=>{
-    if(status!=='on'){toast('兒子還沒連線，連上之後才能播放給他聽');return}
+    if(status!=='on'){toast(kidName()+'還沒連線，連上之後才能播放給他聽');return}
     const pm=parseMusic(q('mUrl').value);
     if(!pm){toast('看不懂這個連結，請貼 YouTube 的分享連結，或 mp3 檔的網址');return}
-    S.musicState='loading';act({t:'music',op:'play',m:Object.assign(pm,{ts:Date.now()})});logEv('媽媽播音樂給兒子聽');o.remove();toast('已經送到兒子的平板');
+    S.musicState='loading';act({t:'music',op:'play',m:Object.assign(pm,{ts:Date.now()})});logEv('媽媽播音樂');o.remove();toast('已經送到'+kidName()+'的平板');
   };
   if(m){q('mPause').onclick=()=>act({t:'music',op:'pause'});q('mResume').onclick=()=>act({t:'music',op:'resume'});
     q('mStop').onclick=()=>{act({t:'music',op:'stop'});o.remove()}}
@@ -1752,12 +1924,12 @@ function whiteboardHTML(){
   const back=nav.back&&nav.back.u>=0?'← 回到課程':'← 地圖';
   return `<div class="top"><button class="iconbtn" id="wbBack">${back}</button><div class="crumb"><b>白板</b></div>${kjChip()}<span class="chip" id="chip"></span></div>
   <div class="stage">
-    ${role!=='kid'?'<p class="tip"><b>用法：</b>媽媽念一個字或一句話，兒子寫在格子裡；媽媽用紅筆幫他改。一頁寫滿了按「新的一頁」。</p>':''}
+    ${role!=='kid'?'<p class="tip"><b>用法：</b>媽媽念一個字或一句話，孩子寫在格子裡；媽媽用紅筆幫他改。一頁寫滿了按「新的一頁」。</p>':''}
     <div class="wbtools">
       <button class="toggle ${grid?'on':''}" id="gridBtn">${grid?'四線格：開':'四線格：關'}</button>
       <button class="toggle" id="undo">↶ 復原我的上一筆</button>
       <button class="toggle" id="clr">這頁全部擦掉</button>
-      <span class="legend"><i style="background:var(--pen-me)"></i>兒子</span><span class="legend"><i style="background:var(--pen-mom)"></i>媽媽</span>
+      <span class="legend"><i style="background:var(--pen-me)"></i>${esc(kidName())}</span><span class="legend"><i style="background:var(--pen-mom)"></i>媽媽</span>
       <span style="flex:1"></span>
       <div class="pager"><button class="toggle" id="pv" ${i===0?'disabled':''}>←</button><span>第 ${i+1} / ${pages} 頁</span><button class="toggle" id="nx" ${i>=pages-1?'disabled':''}>→</button></div>
       <button class="toggle" id="newp">＋ 新的一頁</button>
@@ -1780,6 +1952,7 @@ function bindWhiteboard(){
 /* ===================== 啟動 ===================== */
 checkBadges();celeQueue=[];   // 開啟時不重播舊徽章
 render();booted=true;
+{const su=new URLSearchParams(location.search).get('sheet');if(su&&/^https:\/\/script\.google(usercontent)?\.com\//.test(su)&&su!==sheetURL){sheetURL=su;store.set('sheet',su)}}
 loadSheet();
 if(role==='mom'&&code&&!new URLSearchParams(location.search).get('room'))startMom();
 else if(role==='kid'&&code)startKid(new URLSearchParams(location.search).get('room')||code);
