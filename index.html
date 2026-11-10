@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>英文教室</title>
+<title>JJ英語</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Bungee&family=Huninn&family=Noto+Sans+TC:wght@400;700;900&display=swap">
 <style>
@@ -1375,7 +1375,7 @@ function mapSVG(){
 }
 function homeHTML(){
   const c=curCourse(),stu=curStu()||{};
-  const top=`<div class="top"><div class="crumb home"><b id="titleLock">${esc(c?c.short+'教室':'英文教室')}</b></div><button class="iconbtn" id="wbBtn">📝 白板</button>${role==='kid'?'':'<button class="iconbtn" id="setBtn">⚙️ 設定</button>'}<span class="chip" id="chip"></span></div>
+  const top=`<div class="top"><div class="crumb home"><b id="titleLock">JJ英語</b></div><button class="iconbtn" id="wbBtn">📝 白板</button>${role==='kid'?'':'<button class="iconbtn" id="setBtn">⚙️ 設定</button>'}<span class="chip" id="chip"></span></div>
   ${connectPanel()}
   <div id="settingsBox" hidden></div>`;
   if(!c)return top+`<div class="nocourse">${kaijuSVG(MASCOT,{size:120})}<h2>${esc(stu.name||'')}的課程還沒開始</h2>
