@@ -1263,10 +1263,9 @@ function connectPanel(){
   if(role==='kid'&&status==='on')return '';   // 已連上：右上角顯示「已連上媽媽」就夠了
   if(role==='kid')return '';   // 兒子自己複習：不放任何面板，打開就是作戰地圖
   if(urlRoom)return `<div class="connect"><h3>${PN()}邀請你進教室</h3><div class="row"><button class="big" id="joinUrl">加入教室</button></div></div>`;
-  return `<div class="connect"><h3>開始上課前先連線</h3>
+  return `<div class="connect"><h3>第一次使用：選擇身分</h3>
       <div class="row pnrow"><span class="pnlbl">我是孩子的</span><input class="codein pnin" id="pnIn" maxlength="4" value="${esc(PN())}" aria-label="稱呼"><button class="big" id="asMom">建立教室</button></div>
-      <div class="row"><span class="hint">我是學生：</span><input class="codein" id="codein" inputmode="numeric" maxlength="6" placeholder="代碼"><button class="big ghost" id="asKid">加入</button></div>
-      <p class="hint">不連線也可以自己練習，直接點下面的關卡就好。</p></div>`;
+      <div class="row"><span class="hint">我是學生：</span><input class="codein" id="codein" inputmode="numeric" maxlength="6" placeholder="代碼"><button class="big ghost" id="asKid">加入</button></div></div>`;
 }
 const REGION={
   st:{name:'營地出發',tint:'#ff9a86',deco:['tent','fire','radar','warn']},
