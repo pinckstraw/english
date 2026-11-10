@@ -997,7 +997,7 @@ function summary(){
     ['徽章',Object.keys(P.badges).length+' / '+BADGES.length],['連續上課天數',streak()],['總上課天數',Object.keys(P.days).length],['最後更新',new Date().toLocaleString('zh-TW')]];
   return {topics,badges,overview};
 }
-function sheetMeta(){const x=curStu()||{},c=curCourse();return {key:progKey().slice(5),student:{id:x.id,name:x.name||''},course:{id:c?c.id:'',name:c?c.name:''},students:STUDENTS,studentsAt}}
+function sheetMeta(){const x=curStu()||{},c=curCourse();return {key:progKey().slice(5),student:{id:x.id,name:x.name||''},course:{id:c?c.id:'',name:c?c.name:''},students:STUDENTS.map(y=>Object.assign({},y,{courseName:COURSES[y.course]?COURSES[y.course].name:''})),studentsAt}}
 async function saveSheet(){
   clearTimeout(saveT);
   if(!shouldSave()){pendingEv=[];return}
@@ -1173,7 +1173,7 @@ function onMsg(m){
   }
 }
 function act(m){onMsg(m);send(m)}   // 自己做 + 告訴對方
-function go(n){nav=Object.assign({},nav,n);send({t:'nav',nav});render();window.scrollTo(0,0)}
+function go(n){settingsOpen=false;nav=Object.assign({},nav,n);send({t:'nav',nav});render();window.scrollTo(0,0)}
 function sayShared(text,hk){act({t:'say',text,hk})}
 function flash(hk){if(!hk)return;const el=document.querySelector(`[data-hk="${hk}"]`);if(!el)return;el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1200)}
 
@@ -1183,7 +1183,17 @@ function renderChip(){
   const map={off:['','未連線'],wait:['wait',role==='mom'?`等孩子加入（代碼 ${code}）`:'連線中…'],on:['on',role==='mom'?kidName()+'已連線':'已連上媽媽'],nomom:['','自己練習中'],busy:['','自己練習中'],err:['wait','網路不穩，重新連線中…']};
   const [c,t]=map[status]||map.off;el.className='chip '+c;el.innerHTML=`<span class="dot"></span>${esc(t)}`;
 }
-function render(){document.body.classList.toggle('night',nav.u===-1||nav.u===-2);renderInner();inkFit();renderPenbar()}
+// 設定打開時：正在打字就先不重畫（不然鍵盤會收起、視窗會不見）；重畫後設定維持打開、畫面停在原位
+let settingsOpen=false,pendingRender=false;
+const typingInSettings=()=>{const a=document.activeElement;return !!(a&&a.closest&&a.closest('#settingsBox')&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))};
+document.addEventListener('focusout',()=>setTimeout(()=>{if(pendingRender&&!typingInSettings()){pendingRender=false;render()}},80));
+function render(){
+  const keep=settingsOpen&&nav.u===-1;
+  if(keep&&typingInSettings()){pendingRender=true;return}
+  const y=window.scrollY;
+  document.body.classList.toggle('night',nav.u===-1||nav.u===-2);renderInner();inkFit();renderPenbar();
+  if(keep){openSettings();window.scrollTo(0,y)}
+}
 function renderInner(){
   const app=$('#app');
   if(nav.u===-3){app.innerHTML=whiteboardHTML();renderChip();bindWhiteboard();return}
@@ -1441,11 +1451,11 @@ function bindHome(){
   document.querySelectorAll('[data-teach]').forEach(b=>b.onclick=()=>teach(b.dataset.teach));
   if(q('toBadges'))q('toBadges').onclick=()=>go({u:-2});
   q('wbBtn').onclick=openWB;
-  if(q('setBtn'))q('setBtn').onclick=()=>{const box=q('settingsBox');if(box.hidden)openSettings();else box.hidden=true};
+  if(q('setBtn'))q('setBtn').onclick=()=>{const box=q('settingsBox');if(box.hidden)openSettings();else{box.hidden=true;settingsOpen=false}};
 }
-function openSettings(){const q=id=>document.getElementById(id);const box=q('settingsBox');if(!box)return;box.hidden=false;{box.innerHTML=settingsHTML();renderSheetState();bindStudents();if(q('copy'))q('copy').onclick=()=>{const t=q('link').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製，貼到 LINE 傳給孩子')).catch(()=>{const r=document.createRange();r.selectNodeContents(q('link'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('已選取連結，請按「拷貝」')})};
+function openSettings(){const q=id=>document.getElementById(id);const box=q('settingsBox');if(!box)return;box.hidden=false;settingsOpen=true;{box.innerHTML=settingsHTML();renderSheetState();bindStudents();if(q('copy'))q('copy').onclick=()=>{const t=q('link').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製，貼到 LINE 傳給孩子')).catch(()=>{const r=document.createRange();r.selectNodeContents(q('link'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('已選取連結，請按「拷貝」')})};
     q('setMute').onclick=()=>{toggleMute(false);const b2=document.getElementById('setMute');if(b2){b2.textContent=muteLabel();b2.classList.remove('flashok');void b2.offsetWidth;b2.classList.add('flashok')}};
-    q('setClose').onclick=()=>{q('settingsBox').hidden=true};
+    q('setClose').onclick=()=>{q('settingsBox').hidden=true;settingsOpen=false};
     q('sheetSave').onclick=async()=>{const v=q('sheetIn').value.trim();
       if(v&&!/^https:\/\/script\.google(usercontent)?\.com\//.test(v)){toast('網址看起來不對，應該是 https://script.google.com/ 開頭');return}
       sheetURL=v;store.set('sheet',v);send({t:'sheet',v});
@@ -1454,7 +1464,7 @@ function openSettings(){const q=id=>document.getElementById(id);const box=q('set
       if(await loadSheet()){await saveSheet();toast('試算表連上了')}}}
 }
 function bindStudents(){
-  const reopen=()=>{render();openSettings();const st=document.querySelector('.settings');if(st)st.scrollIntoView({block:'start'})};
+  const reopen=()=>{pendingRender=true;setTimeout(()=>{if(pendingRender&&!typingInSettings()){pendingRender=false;render()}},80)};   // 等點到下一格之後再重畫：設定保持打開、位置不動、不會搶走正在打字的格子
   const pushRoster=()=>{saveStudents();send({t:'roster',list:STUDENTS,at:studentsAt});if(shouldSave())scheduleSave()};
   document.querySelectorAll('.sturow').forEach(row=>{
     const x=STUDENTS.find(y=>y.id===row.dataset.sid);if(!x)return;const cur=x.id===(curStu()||{}).id;
@@ -1468,7 +1478,7 @@ function bindStudents(){
     const use=row.querySelector('.stuuse');if(use)use.onclick=()=>{switchStudent(x.id);toast('切換到 '+x.name);reopen()};
   });
   document.getElementById('stuAdd').onclick=()=>{let n=1;while(STUDENTS.some(y=>y.id==='s'+n))n++;
-    STUDENTS.push({id:'s'+n,name:'學生'+n,grade:3,course:''});pushRoster();reopen();
+    STUDENTS.push({id:'s'+n,name:'學生'+n,grade:3,course:''});pushRoster();if(document.activeElement)document.activeElement.blur();reopen();
     const rows=document.querySelectorAll('.stuname');const last=rows[rows.length-1];if(last){last.focus();last.select()}};
 }
 let dexTab='dex';const shinyView=new Set(),weakOpen=new Set();
