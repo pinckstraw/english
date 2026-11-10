@@ -997,7 +997,7 @@ function summary(){
     ['徽章',Object.keys(P.badges).length+' / '+BADGES.length],['連續上課天數',streak()],['總上課天數',Object.keys(P.days).length],['最後更新',new Date().toLocaleString('zh-TW')]];
   return {topics,badges,overview};
 }
-function sheetMeta(){const x=curStu()||{},c=curCourse();return {key:progKey().slice(5),student:{id:x.id,name:x.name||''},course:{id:c?c.id:'',name:c?c.name:''},students:STUDENTS.map(y=>Object.assign({},y,{courseName:COURSES[y.course]?COURSES[y.course].name:''})),studentsAt}}
+function sheetMeta(){const x=curStu()||{},c=curCourse();return {key:progKey().slice(5),student:{id:x.id,name:x.name||''},course:{id:c?c.id:'',name:c?c.name:''},students:STUDENTS.map(y=>Object.assign({},y,{courseName:COURSES[y.course]?COURSES[y.course].name:''})),studentsAt,roomCode:role==='mom'?code:''}}
 async function saveSheet(){
   clearTimeout(saveT);
   if(!shouldSave()){pendingEv=[];return}
@@ -1005,10 +1005,18 @@ async function saveSheet(){
   const key=progKey(),body=JSON.stringify(Object.assign(sheetMeta(),{state:P,summary:curCourse()?summary():null,events:ev}));
   try{
     const r=await fetch(sheetURL,{method:'POST',body});
-    const j=await r.json();if(j&&j.students)rosterFromSheet(j.students,j.studentsAt);if(j&&j.state&&key===progKey())mergeProg(j.state);
+    const j=await r.json();if(j&&j.students)rosterFromSheet(j.students,j.studentsAt);if(j)useRoomCode(j.roomCode);if(j&&j.state&&key===progKey())mergeProg(j.state);
     sheetState='ok';lastSaved=new Date();
   }catch(e){sheetState='err';pendingEv=ev.concat(pendingEv)}
   renderSheetState();
+}
+// 教室代碼存在試算表：媽媽的每台裝置共用同一組，孩子用哪台開的連結都連得到
+function useRoomCode(rc){
+  if(role==='mom'&&code&&!rc){if(shouldSave())scheduleSave();return}   // 試算表還沒有代碼：把這台的存上去
+  if(!/^\d{6}$/.test(String(rc||''))||rc===code)return;
+  code=String(rc);store.set('code',code);
+  if(role==='mom'&&peer){startMom();if(settingsOpen)render()}
+  else if(role==='kid'&&status!=='on')startKid(code);
 }
 function rosterFromSheet(list,at){
   const moved=adoptStudents(list,at);
@@ -1021,6 +1029,7 @@ async function loadSheet(){
     if(j&&j.ok){
       if(j.students&&rosterFromSheet(j.students,j.studentsAt))return loadSheet();   // 換成別的學生/課本了：再讀一次他的紀錄
       if(j.state&&key===progKey())mergeProg(j.state);
+      useRoomCode(j.roomCode);
       if(!(+j.studentsAt>=studentsAt)&&studentsAt&&shouldSave())scheduleSave();   // 這台的名單比較新：存回試算表
       if(role==='kid'&&!store.get('sid',null)&&status!=='on')showWhoPop(kidPick);   // 新平板：問是誰，舊紀錄從試算表拿回來
       sheetState='ok';renderSheetState();return true}}catch(e){}
@@ -1081,7 +1090,8 @@ function startMom(){
   role='mom';store.set('role','mom');
   if(peer)peer.destroy();
   peer=new Peer(PREFIX+code,{debug:0});
-  setStatus('wait');
+  if(status!=='taken')setStatus('wait');
+  peer.on('open',()=>{if(status==='taken'){setStatus('wait');toast('教室已經在這台開好了')}});
   peer.on('connection',c=>{
     // 先不換掉目前的連線：等這台說自己是誰，是媽媽正在陪的那個孩子才接進來
     const tell=m=>{try{c.send(m)}catch(e){}};
@@ -1099,7 +1109,7 @@ function startMom(){
   });
   peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
   peer.on('error',e=>{
-    if(e.type==='unavailable-id'){setStatus('wait');setTimeout(startMom,4000)}
+    if(e.type==='unavailable-id'){if(status!=='taken')toast('教室正在另一台裝置開著；那台關掉後，這台會自動接手');setStatus('taken');setTimeout(()=>{if(role==='mom')startMom()},5000)}
     else if(e.type==='network'||e.type==='server-error'||e.type==='socket-error'){setStatus('err');setTimeout(startMom,5000)}
   });
   render();
@@ -1180,7 +1190,7 @@ function flash(hk){if(!hk)return;const el=document.querySelector(`[data-hk="${hk
 /* ===================== 畫面 ===================== */
 function renderChip(){
   const el=$('#chip');if(!el)return;
-  const map={off:['','未連線'],wait:['wait',role==='mom'?`等孩子加入（代碼 ${code}）`:'連線中…'],on:['on',role==='mom'?kidName()+'已連線':'已連上媽媽'],nomom:['','自己練習中'],busy:['','自己練習中'],err:['wait','網路不穩，重新連線中…']};
+  const map={off:['','未連線'],wait:['wait',role==='mom'?`等孩子加入（代碼 ${code}）`:'連線中…'],on:['on',role==='mom'?kidName()+'已連線':'已連上媽媽'],nomom:['','自己練習中'],taken:['wait','教室在另一台裝置開著'],busy:['','自己練習中'],err:['wait','網路不穩，重新連線中…']};
   const [c,t]=map[status]||map.off;el.className='chip '+c;el.innerHTML=`<span class="dot"></span>${esc(t)}`;
 }
 // 設定打開時：正在打字就先不重畫（不然鍵盤會收起、視窗會不見）；重畫後設定維持打開、畫面停在原位
