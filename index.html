@@ -330,6 +330,14 @@ body.night .badge small{color:var(--n-muted)}
 .startpop p{margin:0;font-size:17px;color:var(--muted)}
 .startpop .go{width:100%;height:76px;border-radius:22px;background:var(--coral);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);font:700 26px var(--zh);color:var(--ink);animation:nudge 1.4s ease-in-out infinite}
 .pnrow{gap:10px}
+#titleLock{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;position:relative;padding:4px 6px;border-radius:10px;background:linear-gradient(90deg,#ffb39966 0 0) no-repeat 0 0/0% 100%}
+#titleLock.holding{background-size:100% 100%;transition:background-size var(--hold,3s) linear}
+.kidpanel{position:fixed;inset:0;z-index:9000;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:#0009}
+.kidpanel .connect{width:min(560px,100%);max-height:100%;overflow:auto;margin:0}
+body .kidpanel .connect.settings{background:var(--cream);border:3px solid var(--ink);color:var(--ink)}
+body .kidpanel .settings h3{color:var(--ink)}body .kidpanel .settings .hint{color:var(--muted)}
+body .kidpanel .settings .big{background:var(--coral);color:var(--ink);border-color:var(--ink)}
+body .kidpanel .settings .big.ghost{background:var(--card)}
 body .settings .big.wipeyes,body.night .settings .big.wipeyes{background:#c0392b;color:#fff;border-color:var(--ink)}
 .wipewarn{color:#b03a2e!important;font-weight:700}
 .pnlbl{font-weight:700;font-size:18px}
@@ -1472,19 +1480,40 @@ function settingsHTML(){
     <div class="row" id="wipeRow"><button class="big ghost" id="wipeAsk">清除這台裝置的資料</button></div>
     <div class="row" style="justify-content:flex-end"><button class="big ghost" id="setClose">關閉設定</button></div></div>`;
 }
+// 長按標題 3 秒（孩子平板）：掛在整個頁面上，背景重畫換掉標題也不會中斷；手指稍微晃動不算放開；按住時標題慢慢填滿
+(()=>{
+  const MS=3000;let t=null,x0=0,y0=0;
+  const el=()=>document.getElementById('titleLock');
+  const onTitle=tg=>role==='kid'&&tg&&tg.closest&&tg.closest('#titleLock');
+  const stop=()=>{clearTimeout(t);t=null;const e=el();if(e)e.classList.remove('holding')};
+  const start=(x,y)=>{stop();x0=x;y0=y;const e=el();if(e){e.style.setProperty('--hold',MS+'ms');void e.offsetWidth;e.classList.add('holding')}
+    t=setTimeout(()=>{stop();try{navigator.vibrate&&navigator.vibrate(30)}catch(e){}openKidPanel()},MS)};
+  const move=(x,y)=>{if(t&&Math.hypot(x-x0,y-y0)>30)stop()};
+  document.addEventListener('touchstart',e=>{if(onTitle(e.target)){const p=e.touches[0];start(p.clientX,p.clientY)}},{passive:true});
+  document.addEventListener('touchmove',e=>{const p=e.touches[0];move(p.clientX,p.clientY)},{passive:true});
+  document.addEventListener('touchend',stop);document.addEventListener('touchcancel',stop);
+  document.addEventListener('mousedown',e=>{if(onTitle(e.target))start(e.clientX,e.clientY)});
+  document.addEventListener('mousemove',e=>move(e.clientX,e.clientY));
+  document.addEventListener('mouseup',stop);
+  document.addEventListener('contextmenu',e=>{if(onTitle(e.target))e.preventDefault()});
+})();
+// 孩子平板的隱藏設定：浮在最上層的視窗，背景重畫也不會把它關掉，只有按按鈕才會關
+function openKidPanel(){
+  document.querySelectorAll('.kidpanel').forEach(x=>x.remove());
+  const o=document.createElement('div');o.className='kidpanel';
+  o.innerHTML=`<div class="connect settings"><h3>這台平板要改成${PN()}模式嗎？</h3><p class="hint">改了之後，這台會變成開教室的那一台，看得到帶法提示和蓋章按鈕。</p>
+    <div class="row"><button class="big" id="toMomYes">確定改成${PN()}模式</button></div>
+    <h3>這台平板換人用</h3><p class="hint">現在是「${esc(kidName())}」的平板。按下去會問「你是誰？」，選好按確定就換過去。</p>
+    <div class="row"><button class="big ghost" id="whoAgain">重新選是誰</button></div>
+    <div class="row" style="justify-content:flex-end"><button class="big ghost" id="toMomNo">關閉</button></div></div>`;
+  document.body.appendChild(o);
+  o.querySelector('#whoAgain').onclick=()=>{o.remove();showWhoPop(kidPick)};
+  o.querySelector('#toMomYes').onclick=()=>{o.remove();if(peer)try{peer.destroy()}catch(e){}peer=null;conn=null;role=null;store.set('role',null);setStatus('off');render()};
+  o.querySelector('#toMomNo').onclick=()=>o.remove();
+}
 function bindHome(){
   // 學生平板要改回媽媽模式：長按標題 3 秒，再確認一次（藏起來，避免小朋友誤按）
   const tl=document.getElementById('titleLock');
-  if(tl&&role==='kid'){let t=null;
-    tl.onpointerdown=()=>{t=setTimeout(()=>{const box=document.getElementById('settingsBox');box.hidden=false;
-      box.innerHTML=`<div class="connect settings"><h3>這台平板要改成${PN()}模式嗎？</h3><p class="hint">改了之後，這台會變成開教室的那一台，看得到帶法提示和蓋章按鈕。</p>
-        <div class="row"><button class="big" id="toMomYes">確定改成${PN()}模式</button><button class="big ghost" id="toMomNo">取消</button></div>
-        <h3>這台平板換人用</h3><p class="hint">現在是「${esc(kidName())}」的平板。換人之後，下次連上教室會重新問「你是誰？」。</p>
-        <div class="row"><button class="big ghost" id="whoAgain">重新選是誰</button></div></div>`;
-      document.getElementById('whoAgain').onclick=()=>{box.hidden=true;showWhoPop(kidPick)};
-      document.getElementById('toMomYes').onclick=()=>{if(peer)try{peer.destroy()}catch(e){}peer=null;conn=null;role=null;store.set('role',null);setStatus('off');render()};
-      document.getElementById('toMomNo').onclick=()=>{box.hidden=true}},3000)};
-    const stop=()=>clearTimeout(t);tl.onpointerup=stop;tl.onpointerleave=stop;tl.onpointercancel=stop}
   document.querySelectorAll('.node[data-u]').forEach(b=>b.onclick=()=>go({u:+b.dataset.u,t:+b.dataset.t,s:0,sub:0}));
   const q=id=>document.getElementById(id);
   if(q('asMom'))q('asMom').onclick=()=>{const v=(q('pnIn')&&q('pnIn').value.trim())||'媽媽';if(v!==parentWord){parentWord=v;store.set('parentWord',v);saveStudents()}startMom();openSettings();toast('教室開好了，按「複製連結」傳給孩子')};
