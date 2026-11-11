@@ -330,6 +330,8 @@ body.night .badge small{color:var(--n-muted)}
 .startpop p{margin:0;font-size:17px;color:var(--muted)}
 .startpop .go{width:100%;height:76px;border-radius:22px;background:var(--coral);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);font:700 26px var(--zh);color:var(--ink);animation:nudge 1.4s ease-in-out infinite}
 .pnrow{gap:10px}
+body .settings .big.wipeyes,body.night .settings .big.wipeyes{background:#c0392b;color:#fff;border-color:var(--ink)}
+.wipewarn{color:#b03a2e!important;font-weight:700}
 .pnlbl{font-weight:700;font-size:18px}
 input.pnin{width:6.5em;font:700 20px var(--zh);padding:8px 12px;border:3px solid var(--ink);border-radius:12px;text-align:center;letter-spacing:0}
 body.night .settings input.pnin{background:var(--card);color:var(--ink);border-color:var(--ink)}
@@ -1465,6 +1467,9 @@ function settingsHTML(){
     <p class="hint">貼上 Apps Script 部署後拿到的網址（https://script.google.com/macros/s/…/exec）。${PN()}設定好之後，孩子連線時會自動帶過去。每個孩子在試算表裡有自己的分頁。</p>
     <input id="sheetIn" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(sheetURL)}">
     <div class="row"><button class="big" id="sheetSave">儲存並測試</button><span class="hint" id="sheetState"></span></div>
+    <h3>清除這台裝置的資料</h3>
+    <p class="hint">把這台裝置上存的怪獸、單字、學生名單、身分和設定全部清掉，變回第一次打開的樣子（例如測試用過的手機）。試算表裡的紀錄不會被刪，其他平板也不受影響。</p>
+    <div class="row" id="wipeRow"><button class="big ghost" id="wipeAsk">清除這台裝置的資料</button></div>
     <div class="row" style="justify-content:flex-end"><button class="big ghost" id="setClose">關閉設定</button></div></div>`;
 }
 function bindHome(){
@@ -1491,7 +1496,7 @@ function bindHome(){
   q('wbBtn').onclick=openWB;
   if(q('setBtn'))q('setBtn').onclick=()=>{const box=q('settingsBox');if(box.hidden)openSettings();else{box.hidden=true;settingsOpen=false}};
 }
-function openSettings(){const q=id=>document.getElementById(id);const box=q('settingsBox');if(!box)return;box.hidden=false;settingsOpen=true;{box.innerHTML=settingsHTML();renderSheetState();bindStudents();if(q('copy'))q('copy').onclick=()=>{const t=q('link').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製，貼到 LINE 傳給孩子')).catch(()=>{const r=document.createRange();r.selectNodeContents(q('link'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('已選取連結，請按「拷貝」')})};
+function openSettings(){const q=id=>document.getElementById(id);const box=q('settingsBox');if(!box)return;box.hidden=false;settingsOpen=true;{box.innerHTML=settingsHTML();renderSheetState();bindWipe();bindStudents();if(q('copy'))q('copy').onclick=()=>{const t=q('link').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製，貼到 LINE 傳給孩子')).catch(()=>{const r=document.createRange();r.selectNodeContents(q('link'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('已選取連結，請按「拷貝」')})};
     q('setMute').onclick=()=>{toggleMute(false);const b2=document.getElementById('setMute');if(b2){b2.textContent=muteLabel();b2.classList.remove('flashok');void b2.offsetWidth;b2.classList.add('flashok')}};
     q('setClose').onclick=()=>{q('settingsBox').hidden=true;settingsOpen=false};
     q('sheetSave').onclick=async()=>{const v=q('sheetIn').value.trim();
@@ -1500,6 +1505,20 @@ function openSettings(){const q=id=>document.getElementById(id);const box=q('set
       if(!v){renderSheetState();return}
       sheetState='saving';renderSheetState();
       if(await loadSheet()){await saveSheet();toast('試算表連上了')}}}
+}
+function bindWipe(){
+  const ask=document.getElementById('wipeAsk');if(!ask)return;
+  ask.onclick=()=>{
+    const row=document.getElementById('wipeRow');
+    row.innerHTML=`<span class="hint wipewarn">確定要清掉這台裝置的所有資料嗎？</span><button class="big wipeyes" id="wipeYes">確定清除</button><button class="big ghost" id="wipeNo">取消</button>`;
+    document.getElementById('wipeNo').onclick=()=>{row.innerHTML='<button class="big ghost" id="wipeAsk">清除這台裝置的資料</button>';bindWipe()};
+    document.getElementById('wipeYes').onclick=()=>{
+      clearTimeout(saveT);sheetURL='';   // 不再存回試算表
+      try{if(peer)peer.destroy()}catch(e){}
+      try{Object.keys(localStorage).filter(k=>k.startsWith('hl5:')).forEach(k=>localStorage.removeItem(k))}catch(e){}
+      location.replace(location.origin+location.pathname);
+    };
+  };
 }
 function bindStudents(){
   const pnSet=document.getElementById('pnSet');
