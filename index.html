@@ -345,6 +345,7 @@ input.pnin{width:6.5em;font:700 20px var(--zh);padding:8px 12px;border:3px solid
 body.night .settings input.pnin{background:var(--card);color:var(--ink);border-color:var(--ink)}
 .teachbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-block:10px 0;padding-inline:4px}
 .teachbar .lbl{font-weight:700;font-size:15px;color:var(--muted);margin-right:2px}
+.teachbar .takeover{width:100%;margin-top:6px}
 .teachbar .crs{margin-left:auto;font-size:13px;color:var(--muted)}
 body.night .teachbar .lbl,body.night .teachbar .crs{color:var(--n-muted)}
 .teachbtn{font:700 17px var(--zh);padding:8px 18px;border-radius:999px;border:3px solid var(--ink);background:var(--card);color:var(--ink);cursor:pointer}
@@ -1113,13 +1114,26 @@ function kidIdentify(){
 
 /* ===================== 連線（PeerJS，不用帳號） ===================== */
 const PREFIX='hlwow5-';
-let peer=null, conn=null, status='off', retryT=null, busyName='', busyTold={};
+let peer=null, conn=null, status='off', retryT=null, busyName='', busyTold={}, handedOff=false;
 function setStatus(s){const was=status;status=s;renderChip();if(role==='kid'&&nav.u===-1&&(was==='on')!==(s==='on'))render()}
 function send(m){if(conn&&conn.open){try{conn.send(m)}catch(e){}}}
 function wire(c){
   c.on('data',onMsg);
   c.on('close',()=>{if(conn===c){conn=null;if(status!=='busy')setStatus(role==='mom'?'wait':'off');if(role==='kid')scheduleRetry()}});
   c.on('error',()=>{});
+}
+// 一次一台家長裝置開教室：另一台按「改用這台開教室」時，這台把教室讓出去
+function handOff(){
+  handedOff=true;try{if(conn)conn.close()}catch(e){}conn=null;
+  setTimeout(()=>{try{if(peer)peer.destroy()}catch(e){}setStatus('taken');toast('教室已改到另一台裝置開；要改回這台，按「改用這台開教室」');if(nav.u===-1)render()},300);
+}
+function takeOver(){
+  if(typeof Peer==='undefined')return;
+  handedOff=false;toast('正在把教室換到這台…');
+  let done=false;const fin=()=>{if(done)return;done=true;try{tmp.destroy()}catch(e){}setTimeout(startMom,1200)};
+  const tmp=new Peer(undefined,{debug:0});
+  tmp.on('open',()=>{const c=tmp.connect(PREFIX+code,{reliable:true});c.on('open',()=>{try{c.send({t:'takeover'})}catch(e){}setTimeout(fin,800)});setTimeout(fin,6000)});
+  tmp.on('error',fin);
 }
 function startMom(){
   if(typeof Peer==='undefined'){toast('連線元件沒有載入，請確認網路後重新整理');return}
@@ -1135,6 +1149,7 @@ function startMom(){
     c.on('data',m=>{
       if(c===conn)return onMsg(m);
       if(!m||typeof m!=='object')return;
+      if(m.t==='takeover'&&role==='mom'){handOff();return}
       if(m.t==='hello')tell({t:'roster',list:STUDENTS,at:studentsAt,pn:parentWord});
       else if(m.t==='iam'){
         if(m.sid===(curStu()||{}).id){if(conn&&conn!==c)try{conn.close()}catch(e){}conn=c;onMsg(m)}
@@ -1146,7 +1161,7 @@ function startMom(){
   });
   peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
   peer.on('error',e=>{
-    if(e.type==='unavailable-id'){if(status!=='taken')toast('教室正在另一台裝置開著；那台關掉後，這台會自動接手');setStatus('taken');setTimeout(()=>{if(role==='mom')startMom()},5000)}
+    if(e.type==='unavailable-id'){if(status!=='taken'&&!handedOff)toast('教室正在另一台裝置開著；要用這台上課，按首頁的「改用這台開教室」');const was=status;setStatus('taken');if(was!=='taken'&&nav.u===-1)render();setTimeout(()=>{if(role==='mom'&&!handedOff&&status==='taken')startMom()},5000)}
     else if(e.type==='network'||e.type==='server-error'||e.type==='socket-error'){setStatus('err');setTimeout(startMom,5000)}
   });
   render();
@@ -1287,7 +1302,7 @@ function connectPanel(){
   const params=new URLSearchParams(location.search);const urlRoom=params.get('room');
   if(role==='mom'&&peer){   // 首頁只留一行「現在要陪」；代碼和連結放在「⚙️ 設定」
     const c=curCourse();
-    return `<div class="teachbar"><span class="lbl">現在要陪</span>${STUDENTS.map(x=>`<button class="teachbtn ${x.id===(curStu()||{}).id?'cur':''}" data-teach="${esc(x.id)}">${esc(x.name)}</button>`).join('')}<span class="crs">${esc(c?c.name:'還沒安排課程')}</span></div>`;
+    return `<div class="teachbar"><span class="lbl">現在要陪</span>${STUDENTS.map(x=>`<button class="teachbtn ${x.id===(curStu()||{}).id?'cur':''}" data-teach="${esc(x.id)}">${esc(x.name)}</button>`).join('')}<span class="crs">${esc(c?c.name:'還沒安排課程')}</span>${status==='taken'?'<button class="big takeover" id="takeOver">改用這台開教室</button>':''}</div>`;
   }
   if(role==='kid'&&status==='on')return '';   // 已連上：右上角顯示「已連上媽媽」就夠了
   if(role==='kid')return '';   // 兒子自己複習：不放任何面板，打開就是作戰地圖
@@ -1516,11 +1531,12 @@ function bindHome(){
   const tl=document.getElementById('titleLock');
   document.querySelectorAll('.node[data-u]').forEach(b=>b.onclick=()=>go({u:+b.dataset.u,t:+b.dataset.t,s:0,sub:0}));
   const q=id=>document.getElementById(id);
-  if(q('asMom'))q('asMom').onclick=()=>{const v=(q('pnIn')&&q('pnIn').value.trim())||'媽媽';if(v!==parentWord){parentWord=v;store.set('parentWord',v);saveStudents()}startMom();openSettings();toast('教室開好了，按「複製連結」傳給孩子')};
+  if(q('asMom'))q('asMom').onclick=()=>{const v=(q('pnIn')&&q('pnIn').value.trim())||'媽媽';if(v!==parentWord){parentWord=v;store.set('parentWord',v);saveStudents()}startMom();openSettings();if(sheetURL)loadSheet();toast('教室開好了，按「複製連結」傳給孩子')};   // 已接試算表：馬上拿共用的教室代碼
   if(q('asKid'))q('asKid').onclick=()=>{const v=q('codein').value.trim();if(!/^\d{6}$/.test(v)){toast('請輸入 6 位數代碼');return}startKid(v)};
   if(q('soloGo'))q('soloGo').onclick=()=>{const b=q('soloGo');go({u:+b.dataset.u,t:+b.dataset.t,s:0,sub:0})};
   if(q('joinUrl'))q('joinUrl').onclick=()=>startKid(new URLSearchParams(location.search).get('room'));
   document.querySelectorAll('[data-teach]').forEach(b=>b.onclick=()=>teach(b.dataset.teach));
+  if(q('takeOver'))q('takeOver').onclick=takeOver;
   if(q('toBadges'))q('toBadges').onclick=()=>go({u:-2});
   q('wbBtn').onclick=openWB;
   if(q('setBtn'))q('setBtn').onclick=()=>{const box=q('settingsBox');if(box.hidden)openSettings();else{box.hidden=true;settingsOpen=false}};
@@ -1531,6 +1547,7 @@ function openSettings(){const q=id=>document.getElementById(id);const box=q('set
     q('sheetSave').onclick=async()=>{const v=q('sheetIn').value.trim();
       if(v&&!/^https:\/\/script\.google(usercontent)?\.com\//.test(v)){toast('網址看起來不對，應該是 https://script.google.com/ 開頭');return}
       sheetURL=v;store.set('sheet',v);send({t:'sheet',v});
+      if(!role&&v){startMom();settingsOpen=true;render()}   // 還沒選身分就接試算表：當成家長的裝置
       if(!v){renderSheetState();return}
       sheetState='saving';renderSheetState();
       if(await loadSheet()){await saveSheet();toast('試算表連上了')}}}
