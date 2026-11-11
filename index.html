@@ -341,7 +341,11 @@ body.night .teachbar .lbl,body.night .teachbar .crs{color:var(--n-muted)}
 .teachbtn.cur{background:var(--coral);box-shadow:0 3px 0 var(--ink)}
 body.night .teachbtn{background:transparent;border-color:var(--n-line);color:var(--n-text)}
 body.night .teachbtn.cur{background:var(--n-yellow);border-color:var(--n-yellow);color:#111}
-.startpop .whos{display:grid;gap:12px;width:100%}
+.startpop .whos{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;width:100%}
+.startpop .whobtn{font:800 24px var(--zh);padding:16px 10px;border-radius:18px;border:3px solid var(--ink);background:var(--card);color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink)}
+.startpop .whobtn.on{background:var(--coral);border-color:var(--ink);box-shadow:0 2px 0 var(--ink);transform:translateY(2px)}
+.startpop .whobtn.on::before{content:'✓ '}
+.startpop .go:disabled{opacity:.45;animation:none;cursor:default}
 .nocourse{display:grid;justify-items:center;gap:8px;text-align:center;padding:40px 20px 60px;color:var(--ink)}
 .nocourse h2{margin:6px 0 0;font:700 24px var(--zh)}
 .nocourse p{margin:0;max-width:30em;color:var(--muted);font-size:16px}
@@ -1029,7 +1033,7 @@ function useRoomCode(rc){
   else if(role==='kid'&&status!=='on')startKid(code);
 }
 function rosterFromSheet(list,at,pw){
-  const moved=adoptStudents(list,at,pw);
+  const moved=adoptStudents(list,at,pw);refreshWhoPop();
   if(+at===studentsAt){if(role==='mom')send({t:'roster',list:STUDENTS,at:studentsAt,pn:parentWord});if(nav.u===-1)render()}
   return moved}
 async function loadSheet(){
@@ -1070,13 +1074,26 @@ function teach(id){
   switchStudent(id);busyTold={};render();toast('現在陪 '+kidName()+'，請他打開英文教室');
 }
 // 學生平板第一次連上：問「你是誰？」
+// 「你是誰？」：先點自己的名字，再按「確定」（第一次用連結打開時，按確定就等於加入）
 function showWhoPop(onPick){
-  if(document.querySelector('.startpop.who'))return;
+  if(document.querySelector('.startpop.who'))return refreshWhoPop();
   const o=document.createElement('div');o.className='startpop who';
   o.innerHTML=`<div class="box"><div class="bar"><span>你是誰？</span></div>
-    <div class="in">${kaijuSVG(MASCOT,{size:110})}<div class="whos">${STUDENTS.map(x=>`<button class="go" data-sid="${esc(x.id)}">${esc(x.name)}</button>`).join('')}</div></div></div>`;
+    <div class="in">${kaijuSVG(MASCOT,{size:110})}<div class="whos"></div>
+    <button class="go" id="whoOk" disabled>確定</button></div></div>`;
   document.body.appendChild(o);
-  o.querySelectorAll('[data-sid]').forEach(b=>b.onclick=()=>{o.remove();onPick(b.dataset.sid)});
+  o._pick=null;
+  o.querySelector('#whoOk').onclick=()=>{if(!o._pick)return;o.remove();onPick(o._pick)};
+  refreshWhoPop();
+}
+function refreshWhoPop(){
+  const o=document.querySelector('.startpop.who');if(!o)return;
+  if(o._pick&&!STUDENTS.some(x=>x.id===o._pick))o._pick=null;
+  const box=o.querySelector('.whos');
+  box.innerHTML=STUDENTS.map(x=>`<button class="whobtn ${x.id===o._pick?'on':''}" data-sid="${esc(x.id)}">${esc(x.name)}</button>`).join('');
+  box.querySelectorAll('[data-sid]').forEach(b=>b.onclick=()=>{o._pick=b.dataset.sid;refreshWhoPop()});
+  const ok=o.querySelector('#whoOk');const nm=(STUDENTS.find(x=>x.id===o._pick)||{}).name;
+  ok.disabled=!o._pick;ok.textContent=nm?'確定，我是'+nm+'！':'確定';
 }
 function kidPick(id){switchStudent(id);sid=id;store.set('sid',id);render();if(status==='on')send({t:'iam',sid:id,P})}
 function kidIdentify(){
@@ -1156,7 +1173,7 @@ function onMsg(m){
   switch(m.t){
     case 'busy': if(role==='kid'){const first=status!=='busy';busyName=String(m.name||'');setStatus('busy');if(first)toast(busyName?''+PN()+'現在在陪'+busyName+'，你可以先自己練習':'你可以先自己練習')}break;
     case 'hello': if(role==='mom')send({t:'roster',list:STUDENTS,at:studentsAt,pn:parentWord});break;
-    case 'roster': if(role==='kid'&&Array.isArray(m.list)&&m.list.length){adoptStudents(m.list,m.at||1,m.pn);renderChip();kidIdentify()}break;
+    case 'roster': if(role==='kid'&&Array.isArray(m.list)&&m.list.length){adoptStudents(m.list,m.at||1,m.pn);renderChip();refreshWhoPop();kidIdentify()}break;
     case 'iam': if(role==='mom'&&m.sid){if(!STUDENTS.some(x=>x.id===m.sid))break;
         const changed=switchStudent(m.sid);mergeProg(m.P);setStatus('on');toast(kidName()+'已加入教室'+(changed?'，已切換到'+kidName()+'的紀錄':''));
         send({t:'sync',nav,S,P,sheet:sheetURL,list:STUDENTS,at:studentsAt,pn:parentWord});render()}break;
@@ -1991,6 +2008,11 @@ render();booted=true;
 loadSheet();
 if(role==='mom'&&code&&!new URLSearchParams(location.search).get('room'))startMom();
 else if(role==='kid'&&code)startKid(new URLSearchParams(location.search).get('room')||code);
+// 孩子第一次用連結打開：第一個畫面就問「你是誰？」，選好按「確定」就加入教室
+else if(!role&&/^\d{6}$/.test(new URLSearchParams(location.search).get('room')||'')){
+  const rm=new URLSearchParams(location.search).get('room');
+  showWhoPop(id=>{switchStudent(id);sid=id;store.set('sid',id);startKid(rm);render()});
+}
 </script>
 </body>
 </html>
