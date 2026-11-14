@@ -331,6 +331,7 @@ body.night .badge small{color:var(--n-muted)}
 .startpop .go{width:100%;height:76px;border-radius:22px;background:var(--coral);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);font:700 26px var(--zh);color:var(--ink);animation:nudge 1.4s ease-in-out infinite}
 .pnrow{gap:10px}
 .tip.ghost,.teachbar.ghost{visibility:hidden}
+.stampbtn.selfchk{background:#9fd3e8;color:var(--ink)!important}.stampbtn.selfchk.on{background:var(--card)}
 #titleLock{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;position:relative;padding:4px 6px;border-radius:10px;background:linear-gradient(90deg,#ffb39966 0 0) no-repeat 0 0/0% 100%}
 #titleLock.holding{background-size:100% 100%;transition:background-size var(--hold,3s) linear}
 .kidpanel{position:fixed;inset:0;z-index:9000;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:#0009}
@@ -2081,16 +2082,19 @@ function buildHTML(T,st){
   <div class="row"><button class="toggle" id="resetT">重排</button>${i<list.length-1?'<button class="big" id="nextb">下一句 →</button>':''}</div>`;
 }
 /* 寫字板 */
+const revealed=new Set();   // 孩子自己練習時「對答案」打開過的聽寫格（只在這台）
 function stampStateHTML(bk){return S.stamped[bk]?'<span class="stamped">💮 '+PN()+'蓋過章了</span>':''}
 function writeHTML(T,st){
   const items=st.items,i=Math.min(nav.sub,items.length-1),k=key(i),txt=items[i];
-  if(st.dict)S.guide[k]=false;   // 聽寫：沒有範字
+  // 孩子自己練習（沒連線）時，聽寫可以按「對答案」：出現英文，格子裡也出現淡灰色範字跟他寫的對照
+  const selfChk=st.dict&&role==='kid'&&status!=='on',rev=selfChk&&revealed.has(k);
+  if(st.dict)S.guide[k]=rev;   // 聽寫：平常沒有範字
   const guide=S.guide[k]!==false;
-  const showW=!st.dict||role==='mom'||!!S.stamped[k];   // 聽寫時孩子看不到英文，蓋章後才出現答案
+  const showW=!st.dict||role==='mom'||!!S.stamped[k]||rev;   // 聽寫時孩子看不到英文，蓋章（或自己對答案）後才出現
   const w=T.words?T.words.find(x=>x.en===txt):T.groups?T.groups.flatMap(g=>g.words).find(x=>x.en===txt):null;
   return `<h3>${esc(st.label)}</h3>${tipHTML(st)}
-  <div class="board-target"><button class="speak" id="play" style="height:52px">🔊</button><span class="w"${showW?'':' style="visibility:hidden"'}>${esc(txt)}</span>${w?`<span class="z">${esc(w.zh)}</span>`:''}${st.dict&&!S.stamped[k]?`<span class="hint" style="margin-left:6px${role==='mom'?'':';visibility:hidden'}">（孩子看不到）</span>`:''}
-    <span style="flex:1"></span>${role==='mom'?'<button class="toggle stampbtn" id="stamp">👍 蓋章：寫得好</button>':'<span class="toggle stampbtn" style="visibility:hidden" aria-hidden="true">👍 蓋章：寫得好</span>'}<span id="stampState">${stampStateHTML(k)}</span></div>
+  <div class="board-target"><button class="speak" id="play" style="height:52px">🔊</button><span class="w"${showW?'':' style="visibility:hidden"'}>${esc(txt)}</span>${w?`<span class="z">${esc(w.zh)}</span>`:''}${st.dict&&!S.stamped[k]&&!rev?`<span class="hint" style="margin-left:6px${role==='mom'?'':';visibility:hidden'}">（孩子看不到）</span>`:''}
+    <span style="flex:1"></span>${role==='mom'?'<button class="toggle stampbtn" id="stamp">👍 蓋章：寫得好</button>':selfChk?`<button class="toggle stampbtn selfchk ${rev?'on':''}" id="selfChk">${rev?'✏️ 再寫一次':'👀 對答案'}</button>`:'<span class="toggle stampbtn" style="visibility:hidden" aria-hidden="true">👍 蓋章：寫得好</span>'}<span id="stampState">${stampStateHTML(k)}</span></div>
   <div class="board-wrap"><canvas class="board" id="board" data-k="${k}"></canvas>
   <div class="pens">
     ${st.dict?'':`<button class="toggle ${guide?'on':''}" id="guideBtn">${guide?'範字：開':'範字：關'}</button>`}
@@ -2148,6 +2152,18 @@ function bindStep(U,T,st){
     if($('#guideBtn'))$('#guideBtn').onclick=()=>act({t:'guide',k:bk,v:S.guide[bk]===false});
     $('#undo').onclick=()=>{const mine=(S.boards[bk]||[]).filter(s=>s.id.startsWith(myTag()));if(mine.length)act({t:'undo',k:bk,id:mine[mine.length-1].id})};
     $('#clr').onclick=()=>act({t:'clear',k:bk});
+    const sc=$('#selfChk');if(sc)sc.onclick=()=>{if(revealed.has(bk)){revealed.delete(bk);act({t:'clear',k:bk})}else revealed.add(bk);render()};
+    // 「對答案」等他寫完才出現：有寫字，而且停筆 4 秒沒再寫
+    if(sc&&!revealed.has(bk)){
+      sc.style.visibility='hidden';let sig='',last=Date.now();
+      const tm=setInterval(()=>{
+        if(!document.body.contains(sc)){clearInterval(tm);return}
+        const mine=(S.boards[bk]||[]).filter(x=>x.id&&x.id.startsWith(myTag()));
+        const now=mine.length+':'+mine.reduce((n,x)=>n+((x.p||x.pts||[]).length),0);
+        if(now!==sig){sig=now;last=Date.now();sc.style.visibility='hidden'}
+        else if(mine.length&&Date.now()-last>=4000)sc.style.visibility='';
+      },400);
+    }
     $('#pv').onclick=()=>go({sub:i-1});
     $('#nx').onclick=()=>go({sub:i+1});
     const sb=$('#stamp');
