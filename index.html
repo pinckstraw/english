@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=820,viewport-fit=cover"><!-- 固定 820 寬：每台平板、手機排版都一樣，畫筆圈的位置才會對準 -->
 <title>JJ英語</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Bungee&family=Huninn&family=Noto+Sans+TC:wght@400;700;900&display=swap">
@@ -330,6 +330,7 @@ body.night .badge small{color:var(--n-muted)}
 .startpop p{margin:0;font-size:17px;color:var(--muted)}
 .startpop .go{width:100%;height:76px;border-radius:22px;background:var(--coral);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);font:700 26px var(--zh);color:var(--ink);animation:nudge 1.4s ease-in-out infinite}
 .pnrow{gap:10px}
+.tip.ghost,.teachbar.ghost{visibility:hidden}
 #titleLock{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;position:relative;padding:4px 6px;border-radius:10px;background:linear-gradient(90deg,#ffb39966 0 0) no-repeat 0 0/0% 100%}
 #titleLock.holding{background-size:100% 100%;transition:background-size var(--hold,3s) linear}
 .kidpanel{position:fixed;inset:0;z-index:9000;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:#0009}
@@ -684,11 +685,11 @@ const STEP_DEFS = {
     {type:'words',label:'看圖學單字',min:4,tip:'<b>帶法：</b>你先按一張卡念兩次，請他跟念。念熟了按「遮住英文」，讓他看圖說英文。'},
     {type:'quiz',mode:'listen',label:'聽音選圖',min:3,tip:'<b>帶法：</b>按 🔊 播放，讓他在他的平板上選。選錯沒關係，再聽一次。'},
     {type:'quiz',mode:'read',label:'看圖選單字',min:3,tip:'<b>帶法：</b>請他先把選項念出來再選，練習「看字念音」。'},
-    {type:'write',label:'寫寫看',min:5,items:t.words.map(w=>w.en),tip:'<b>帶法：</b>他用藍筆描淡灰色範字，你用紅筆圈出要修正的地方。寫得好就按「👍 蓋章」送他一隻怪獸。描熟了可以關掉範字讓他自己寫。'}],
+    {type:'write',label:'聽寫',dict:true,min:5,items:t.words.map(w=>w.en),tip:'<b>帶法：</b>這是聽寫：按 🔊 讓他聽（你也可以自己念），他憑記憶寫在格子裡，看不到英文。寫完你用紅筆圈出要修正的地方；寫對了按「👍 蓋章」，他那邊就會出現正確答案。'}],
   phonics:t=>[
     {type:'phonics',label:'發音規則',min:5,tip:t.tip||'<b>帶法：</b>先念紅色的字母組合，再念整個字。例如「a_e 念 ㄟ → c-a-ke → cake」。'},
     {type:'quiz',mode:'listen',label:'聽音選字',min:4,tip:'<b>帶法：</b>播放後讓他選，再請他把答案念一遍。'},
-    {type:'write',label:'寫寫看',min:5,items:t.groups.flatMap(g=>g.words.map(w=>w.en)),tip:'<b>帶法：</b>一邊寫一邊念，寫到紅色那幾個字母時特別念出聲音。'}],
+    {type:'write',label:'聽寫',dict:true,min:5,items:t.groups.flatMap(g=>g.words.map(w=>w.en)),tip:'<b>帶法：</b>這是聽寫：按 🔊 讓他聽（你也可以自己念），他憑記憶寫在格子裡，看不到英文。寫完你用紅筆圈出要修正的地方；寫對了按「👍 蓋章」，他那邊就會出現正確答案。'}],
   pattern:t=>[
     {type:'dialog',label:'聽說句型',min:4,tip:'<b>帶法：</b>先按泡泡聽一次。再分角色：你念 A，他念 B；然後交換。'},
     {type:'build',label:'排排看',min:4,tip:'<b>帶法：</b>讓他自己按字卡排出句子，排好後一起念一遍。'},
@@ -1508,7 +1509,7 @@ function onMsg(m){
     case 'hide': S.hide[m.k]=m.v;S.reveal[m.k]=[];render();break;
     case 'reveal': (S.reveal[m.k]=S.reveal[m.k]||[]).push(m.i);render();break;
     case 'guide': S.guide[m.k]=m.v;render();break;
-    case 'stamp': S.stamped[m.k]=1;if(m.sk)catchAnim(m.sk,''+PN()+'說寫得好！');{const el=$('#stampState');if(el)el.innerHTML=stampStateHTML(m.k)}break;
+    case 'stamp': S.stamped[m.k]=1;if(m.sk)catchAnim(m.sk,''+PN()+'說寫得好！');{const el=$('#stampState');if(el)el.innerHTML=stampStateHTML(m.k);const bd=$('#board');if(bd&&bd.dataset.k===m.k){const w=$('.board-target .w');if(w)w.style.visibility='';const h=$('.board-target .hint');if(h)h.style.display='none'}}break;   // 聽寫：蓋章後孩子看到答案
     case 'sb': (S.boards[m.k]=S.boards[m.k]||[]).push({id:m.id,c:m.c,w:m.w,p:m.p.slice()});redrawAny(m.k);break;
     case 'sp': {const st=(S.boards[m.k]||[]).find(x=>x.id===m.id);if(st){st.p.push(...m.p);redrawAny(m.k)}break}
     case 'undo': S.boards[m.k]=(S.boards[m.k]||[]).filter(x=>x.id!==m.id);redrawAny(m.k);break;
@@ -1587,7 +1588,8 @@ function connectPanel(){
     const c=curCourse();
     return `<div class="teachbar"><span class="lbl">現在要陪</span>${STUDENTS.map(x=>`<button class="teachbtn ${x.id===(curStu()||{}).id?'cur':''}" data-teach="${esc(x.id)}">${esc(x.name)}</button>`).join('')}<span class="crs">${esc(c?c.name:'還沒安排課程')}</span>${status==='taken'?'<button class="big takeover" id="takeOver">改用這台開教室</button>':''}</div>`;
   }
-  if(role==='kid'&&status==='on')return '';   // 已連上：右上角顯示「已連上媽媽」就夠了
+  // 已連上：孩子看不到「現在要陪」，但留一樣高的空白，地圖位置才跟家長那邊一樣（畫筆圈得準）
+  if(role==='kid'&&status==='on')return `<div class="teachbar ghost" aria-hidden="true"><span class="lbl">現在要陪</span>${STUDENTS.map(x=>`<span class="teachbtn">${esc(x.name)}</span>`).join('')}</div>`;
   if(role==='kid')return '';   // 兒子自己複習：不放任何面板，打開就是作戰地圖
   if(urlRoom)return `<div class="connect"><h3>${PN()}邀請你進教室</h3><div class="row"><button class="big" id="joinUrl">加入教室</button></div></div>`;
   return `<div class="connect"><h3>第一次使用：選擇身分</h3>
@@ -1963,7 +1965,8 @@ function bindDex(){
   document.querySelectorAll('.evobtn').forEach(b=>b.onclick=()=>evolve(b.dataset.evo));
   document.querySelectorAll('.shinyt').forEach(b=>b.onclick=()=>{const id=b.dataset.shiny;shinyView.has(id)?shinyView.delete(id):shinyView.add(id);render()});$('#home').onclick=()=>go({u:-1});document.querySelectorAll('.weak[data-say]').forEach(b=>b.onclick=()=>sayShared(b.dataset.say));$('#tabDex').onclick=()=>{dexTab='dex';render()};$('#tabBadge').onclick=()=>{dexTab='badge';render()}}
 const key=(...x)=>[nav.u,nav.t,nav.s,...x].join('-');
-const tipHTML=st=>st.tip&&role!=='kid'?`<p class="tip">${st.tip}</p>`:'';  // 帶法只給媽媽看
+// 帶法只給家長看；孩子那邊留一樣大的空白（看不到字），兩邊排版才一樣，畫筆圈的位置才對得上
+const tipHTML=st=>st.tip?`<p class="tip${role==='kid'?' ghost':''}">${st.tip}</p>`:'';
 function noteHTML(T){return T.note?`<div class="note">${T.note}</div>`:''}
 
 function stepHTML(U,T,st){
@@ -2081,14 +2084,16 @@ function buildHTML(T,st){
 function stampStateHTML(bk){return S.stamped[bk]?'<span class="stamped">💮 '+PN()+'蓋過章了</span>':''}
 function writeHTML(T,st){
   const items=st.items,i=Math.min(nav.sub,items.length-1),k=key(i),txt=items[i];
+  if(st.dict)S.guide[k]=false;   // 聽寫：沒有範字
   const guide=S.guide[k]!==false;
+  const showW=!st.dict||role==='mom'||!!S.stamped[k];   // 聽寫時孩子看不到英文，蓋章後才出現答案
   const w=T.words?T.words.find(x=>x.en===txt):T.groups?T.groups.flatMap(g=>g.words).find(x=>x.en===txt):null;
   return `<h3>${esc(st.label)}</h3>${tipHTML(st)}
-  <div class="board-target"><button class="speak" id="play" style="height:52px">🔊</button><span class="w">${esc(txt)}</span>${w?`<span class="z">${esc(w.zh)}</span>`:''}
-    <span style="flex:1"></span>${role==='mom'?'<button class="toggle stampbtn" id="stamp">👍 蓋章：寫得好</button>':''}<span id="stampState">${stampStateHTML(k)}</span></div>
+  <div class="board-target"><button class="speak" id="play" style="height:52px">🔊</button><span class="w"${showW?'':' style="visibility:hidden"'}>${esc(txt)}</span>${w?`<span class="z">${esc(w.zh)}</span>`:''}${st.dict&&!S.stamped[k]?`<span class="hint" style="margin-left:6px${role==='mom'?'':';visibility:hidden'}">（孩子看不到）</span>`:''}
+    <span style="flex:1"></span>${role==='mom'?'<button class="toggle stampbtn" id="stamp">👍 蓋章：寫得好</button>':'<span class="toggle stampbtn" style="visibility:hidden" aria-hidden="true">👍 蓋章：寫得好</span>'}<span id="stampState">${stampStateHTML(k)}</span></div>
   <div class="board-wrap"><canvas class="board" id="board" data-k="${k}"></canvas>
   <div class="pens">
-    <button class="toggle ${guide?'on':''}" id="guideBtn">${guide?'範字：開':'範字：關'}</button>
+    ${st.dict?'':`<button class="toggle ${guide?'on':''}" id="guideBtn">${guide?'範字：開':'範字：關'}</button>`}
     <button class="toggle" id="undo">↶ 復原我的上一筆</button>
     <button class="toggle" id="clr">全部擦掉</button>
     <span class="legend"><i style="background:var(--pen-me)"></i>${esc(penKidLabel())}</span><span class="legend"><i style="background:var(--pen-mom)"></i>${PN()}</span>
@@ -2140,7 +2145,7 @@ function bindStep(U,T,st){
   if(st.type==='write'){
     const i=Math.min(nav.sub,st.items.length-1),bk=key(i),word=st.items[i];
     $('#play').onclick=()=>sayShared(word);
-    $('#guideBtn').onclick=()=>act({t:'guide',k:bk,v:S.guide[bk]===false});
+    if($('#guideBtn'))$('#guideBtn').onclick=()=>act({t:'guide',k:bk,v:S.guide[bk]===false});
     $('#undo').onclick=()=>{const mine=(S.boards[bk]||[]).filter(s=>s.id.startsWith(myTag()));if(mine.length)act({t:'undo',k:bk,id:mine[mine.length-1].id})};
     $('#clr').onclick=()=>act({t:'clear',k:bk});
     $('#pv').onclick=()=>go({sub:i-1});
@@ -2361,7 +2366,7 @@ function whiteboardHTML(){
   const back=nav.back&&nav.back.u>=0?'← 回到課程':'← 地圖';
   return `<div class="top"><button class="iconbtn" id="wbBack">${back}</button><div class="crumb"><b>白板</b></div>${kjChip()}<span class="chip" id="chip"></span></div>
   <div class="stage">
-    ${role!=='kid'?'<p class="tip"><b>用法：</b>'+PN()+'念一個字或一句話，孩子寫在格子裡；'+PN()+'用紅筆幫他改。一頁寫滿了按「新的一頁」。</p>':''}
+    ${'<p class="tip'+(role==='kid'?' ghost':'')+'"><b>用法：</b>'+PN()+'念一個字或一句話，孩子寫在格子裡；'+PN()+'用紅筆幫他改。一頁寫滿了按「新的一頁」。</p>'}
     <div class="wbtools">
       <button class="toggle ${grid?'on':''}" id="gridBtn">${grid?'四線格：開':'四線格：關'}</button>
       <button class="toggle" id="undo">↶ 復原我的上一筆</button>
