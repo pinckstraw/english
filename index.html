@@ -1128,6 +1128,8 @@ function wire(c){
   c.on('error',()=>{});
 }
 // 一次一台家長裝置開教室：另一台按「改用這台開教室」時，這台把教室讓出去
+// 關掉分頁或離開網頁時馬上讓出教室，另一台不用等伺服器逾時
+window.addEventListener('pagehide',()=>{if(role==='mom'&&peer)try{peer.destroy()}catch(e){}});
 function handOff(){
   handedOff=true;try{if(conn)conn.close()}catch(e){}conn=null;
   setTimeout(()=>{try{if(peer)peer.destroy()}catch(e){}setStatus('taken');toast('教室已改到另一台裝置開；要改回這台，按「改用這台開教室」');if(nav.u===-1)render()},300);
@@ -1528,6 +1530,7 @@ function openKidPanel(){
   const o=document.createElement('div');o.className='kidpanel';
   o.innerHTML=`<div class="connect settings"><h3>這台平板要改成${PN()}模式嗎？</h3><p class="hint">改了之後，這台會變成開教室的那一台，看得到帶法提示和蓋章按鈕。</p>
     <div class="row"><button class="big" id="toMomYes">確定改成${PN()}模式</button></div>
+    <h3>連線狀態</h3><p class="hint">這台平板連的教室代碼：<b style="font-size:20px;color:var(--ink)">${esc(code||'（還沒有）')}</b>　狀態：${esc(({on:'已連上',busy:'家長在陪別的孩子',nomom:'找不到教室',wait:'連線中',off:'未連線'})[status]||status)}<br>和家長「⚙️ 設定」最上面的代碼不一樣的話，請家長重新傳一次「複製連結」，在這台點開就好。</p>
     <h3>這台平板換人用</h3><p class="hint">現在是「${esc(kidName())}」的平板。按下去會問「你是誰？」，選好按確定就換過去。</p>
     <div class="row"><button class="big ghost" id="whoAgain">重新選是誰</button></div>
     <div class="row" style="justify-content:flex-end"><button class="big ghost" id="toMomNo">關閉</button></div></div>`;
