@@ -447,7 +447,123 @@ body.night .settings input,body.night .settings select{background:var(--card);co
 <div class="penbar" id="penbar"></div>
 <div class="toast" id="toast"></div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script>
+/* ===================== 連線：中繼伺服器轉送 =====================
+   家長和孩子在不同網路（不同家、4G）時，平板之間常常沒辦法直接連上。
+   這裡改成兩邊都連到公開的 MQTT 中繼伺服器，由它轉送訊息；訊息先用教室代碼加密。
+   對外提供跟 PeerJS 一樣的用法：new Peer(id) / peer.connect(id) / conn.send()。 */
+(function(){
+  const BROKERS=window.__JJ_BROKERS||['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt'];
+  const te=new TextEncoder(),td=new TextDecoder();
+  const rand=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+  const clients=[];const subs=new Map();const readyQ=[];const seen=new Set();const seenQ=[];
+  const anyReady=()=>clients.some(c=>c.connected);
+  function startClients(){
+    if(clients.length||typeof mqtt==='undefined')return;
+    BROKERS.forEach(url=>{
+      let c;try{c=mqtt.connect(url,{clientId:'jj_'+rand(),keepalive:20,reconnectPeriod:3000,connectTimeout:10000,clean:true})}catch(e){return}
+      c.on('connect',()=>{for(const t of subs.keys())c.subscribe(t);readyQ.splice(0).forEach(f=>{try{f()}catch(e){}})});
+      c.on('message',(t,buf)=>{const hs=subs.get(t);if(hs)hs.forEach(h=>h(buf.toString()))});
+      c.on('error',()=>{});
+      clients.push(c);
+    });
+  }
+  function onReady(f){startClients();if(anyReady())f();else readyQ.push(f)}
+  function subscribe(t,h){startClients();if(!subs.has(t)){subs.set(t,new Set());clients.forEach(c=>{if(c.connected)c.subscribe(t)})}subs.get(t).add(h)}
+  function unsubscribe(t,h){const s=subs.get(t);if(!s)return;s.delete(h);if(!s.size){subs.delete(t);clients.forEach(c=>{if(c.connected)c.unsubscribe(t)})}}
+  function publish(t,str){clients.forEach(c=>{if(c.connected)c.publish(t,str,{qos:0})})}
+
+  const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+  const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
+  const unb64=s=>Uint8Array.from(atob(s),ch=>ch.charCodeAt(0));
+  const sha=async s=>hex(await crypto.subtle.digest('SHA-256',te.encode(s)));
+  const topicCache={},keyCache={},keyByTag={};
+  async function topicOf(id){return topicCache[id]||(topicCache[id]='jj1/'+(await sha('jj1-topic:'+id)).slice(0,24))}
+  async function keyOf(hostId){
+    if(keyCache[hostId])return keyCache[hostId];
+    const raw=await crypto.subtle.digest('SHA-256',te.encode('jj1-key:'+hostId));
+    const k=await crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
+    const tag=(await sha('jj1-tag:'+hostId)).slice(0,12);
+    keyCache[hostId]={k,tag};keyByTag[tag]=k;return keyCache[hostId];
+  }
+  let sendChain=Promise.resolve();
+  function sendTo(toId,hostId,obj){
+    sendChain=sendChain.then(async()=>{
+      const t=await topicOf(toId),{k,tag}=await keyOf(hostId);
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const c=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,te.encode(JSON.stringify(obj)));
+      publish(t,JSON.stringify({m:rand(),t:tag,iv:b64(iv),c:b64(c)}));
+    }).catch(()=>{});
+    return sendChain;
+  }
+  async function openEnvelope(raw){
+    let e;try{e=JSON.parse(raw)}catch(x){return null}
+    if(!e||!e.m||seen.has(e.m))return null;
+    seen.add(e.m);seenQ.push(e.m);if(seenQ.length>800)seen.delete(seenQ.shift());
+    const k=keyByTag[e.t];if(!k)return null;
+    try{return JSON.parse(td.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(e.iv)},k,unb64(e.c))))}catch(x){return null}
+  }
+
+  class RConn{
+    constructor(peer,remote,cid,hostId){this.peer=peer;this.remote=remote;this.cid=cid;this.hostId=hostId;this.h={};this.open=false;this.dead=false;this.lastSeen=Date.now()}
+    on(e,f){(this.h[e]=this.h[e]||[]).push(f);return this}
+    emit(e,v){(this.h[e]||[]).forEach(f=>{try{f(v)}catch(err){console.error(err)}})}
+    _raw(o){o.cid=this.cid;return sendTo(this.remote,this.hostId,o)}
+    _open(){if(this.open||this.dead)return;this.open=true;this.lastSeen=Date.now();
+      this.hb=setInterval(()=>{if(Date.now()-this.lastSeen>20000){this._closed();return}this._raw({k:'ping'})},5000);
+      this.emit('open')}
+    send(v){if(!this.dead)this._raw({k:'data',v})}
+    close(){if(this.dead)return;this._raw({k:'close'});this._closed()}
+    _closed(){if(this.dead)return;this.dead=true;this.open=false;clearInterval(this.hb);this.peer.conns.delete(this.cid);this.emit('close')}
+  }
+
+  class RPeer{
+    constructor(id){
+      this.named=typeof id==='string';this.id=this.named?id:'c'+rand();
+      this.h={};this.conns=new Map();this.alive=true;this.owner=false;this.taken=false;this.nonce=rand();
+      this.handler=raw=>this._onRaw(raw);this._init();
+    }
+    on(e,f){(this.h[e]=this.h[e]||[]).push(f);return this}
+    emit(e,v){(this.h[e]||[]).forEach(f=>{try{f(v)}catch(err){console.error(err)}})}
+    async _init(){
+      this.topic=await topicOf(this.id);if(this.named)await keyOf(this.id);
+      if(!this.alive)return;subscribe(this.topic,this.handler);
+      onReady(()=>{if(!this.alive)return;
+        if(!this.named){this.owner=true;this.emit('open',this.id);return}
+        // 先問問看這個教室代碼是不是已經有別台在用
+        sendTo(this.id,this.id,{k:'probe',nonce:this.nonce});
+        setTimeout(()=>{if(!this.alive)return;if(this.taken)this.emit('error',{type:'unavailable-id'});else{this.owner=true;this.emit('open',this.id)}},2500);
+      });
+      setTimeout(()=>{if(this.alive&&!this.owner&&!this.taken&&!anyReady())this.emit('error',{type:'network'})},15000);
+    }
+    async _onRaw(raw){
+      const o=await openEnvelope(raw);if(!o||!this.alive)return;
+      if(o.k==='probe'){if(this.owner&&this.named&&o.nonce!==this.nonce)sendTo(this.id,this.id,{k:'taken',nonce:o.nonce});return}
+      if(o.k==='taken'){if(o.nonce===this.nonce&&!this.owner)this.taken=true;return}
+      if(o.k==='connect'){
+        if(!(this.owner&&this.named)||!o.from||this.conns.has(o.cid))return;
+        const c=new RConn(this,o.from,o.cid,this.id);this.conns.set(o.cid,c);this.emit('connection',c);
+        c._open();c._raw({k:'accept'});return;
+      }
+      const c=this.conns.get(o.cid);if(!c)return;c.lastSeen=Date.now();
+      if(o.k==='accept')c._open();
+      else if(o.k==='data')c.emit('data',o.v);
+      else if(o.k==='ping')c._raw({k:'pong'});
+      else if(o.k==='close')c._closed();
+    }
+    connect(to){
+      const cid=rand(),c=new RConn(this,to,cid,to);this.conns.set(cid,c);
+      keyOf(to).then(()=>sendTo(to,to,{k:'connect',cid,from:this.id}));
+      setTimeout(()=>{if(!c.open&&!c.dead&&this.alive){c._closed();this.emit('error',{type:'peer-unavailable'})}},5000);
+      return c;
+    }
+    destroy(){if(!this.alive)return;this.alive=false;[...this.conns.values()].forEach(c=>c.close());if(this.topic)unsubscribe(this.topic,this.handler)}
+    reconnect(){}
+  }
+  if(typeof mqtt!=='undefined'&&window.crypto&&crypto.subtle)window.Peer=RPeer;
+})();
+</script>
 <script>
 /* ===================== 課程內容（翰林 Here We Go 5 上） ===================== */
 const W = (en, zh, pic) => ({en, zh, pic});
@@ -749,7 +865,19 @@ const RARITY = {1:'常見',2:'稀有',3:'傳說',4:'關主'};
 const THREAT = {1:'★',2:'★★★',3:'★★★★★',4:'★★★★'};
 const BORDER = '#1b1420';
 
+// 異色：每個顏色換成對比色（色相轉 180°）；灰色、黑白這種沒什麼顏色的，換成鮮豔的金色系，差別才明顯
+function shinyCol(hex){
+  if(!/^#[0-9a-f]{6}$/i.test(hex||''))return hex;
+  let r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;let h=0,s=0;
+  if(d){s=d/(1-Math.abs(2*l-1));h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360}
+  if(s<0.25){h=45;s=0.85}else h=(h+180)%360;
+  const L=Math.min(0.92,Math.max(0.12,l)),C=(1-Math.abs(2*L-1))*s,X=C*(1-Math.abs((h/60)%2-1)),m=L-C/2;
+  const [R,G,B]=h<60?[C,X,0]:h<120?[X,C,0]:h<180?[0,C,X]:h<240?[0,X,C]:h<300?[X,0,C]:[C,0,X];
+  return '#'+[R,G,B].map(v=>Math.round((v+m)*255).toString(16).padStart(2,'0')).join('');
+}
 function kaijuSVG(k, opt={}){
+  if(opt.shiny&&!opt.locked)k=Object.assign({},k,{id:k.id+'sh',b:shinyCol(k.b),l:shinyCol(k.l),s:shinyCol(k.s),e:shinyCol(k.e)});
   const sil = opt.locked;
   const ink = sil ? '#2c3850' : BORDER;
   const fill = c => sil ? '#151b28' : c;
@@ -878,7 +1006,7 @@ function kaijuSVG(k, opt={}){
   }
   let spark='';
   if(!sil&&opt.shiny)spark=`<path d="M10 20 L12 26 L18 28 L12 30 L10 36 L8 30 L2 28 L8 26 Z M88 12 L89.5 16.5 L94 18 L89.5 19.5 L88 24 L86.5 19.5 L82 18 L86.5 16.5 Z M90 78 L91 81 L94 82 L91 83 L90 86 L89 83 L86 82 L89 81 Z" fill="#fff6a8" stroke="#1b1420" stroke-width="1"/>`;
-  const filt=(!sil&&opt.shiny)?' style="filter:hue-rotate(150deg) saturate(1.45) brightness(1.05)"':'';
+  const filt='';
   return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" ${opt.attrs||''} aria-hidden="true" class="kj"><defs>${defs}</defs><g${filt}>${aura}${halo}${g}${top}${head}${armor}${pat}${jaw}${mouth}${eyes}</g>${spark}</svg>`;
 }
 
