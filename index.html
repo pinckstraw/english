@@ -207,7 +207,7 @@ canvas.board{width:100%;display:block;background:#fff;border:3px solid var(--ink
 .tabs button.cur{background:var(--coral);box-shadow:var(--shadow)}
 .dexsec{margin-block:14px 6px;font-size:16px;color:var(--muted);display:flex;align-items:center;gap:8px}
 .dexsec b{color:var(--ink);font-size:19px}
-.dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-auto-rows:1fr;gap:12px}   /* 每張卡片一樣高 */
 .mon{background:var(--card);border:3px solid var(--ink);border-radius:22px;box-shadow:var(--shadow);padding:10px 8px 12px;text-align:center;display:grid;justify-items:center;gap:2px;position:relative}
 .mon .kj{width:104px;height:104px}
 .mon b{font-size:17px}
@@ -331,6 +331,8 @@ body.night .badge small{color:var(--n-muted)}
 .startpop .go{width:100%;height:76px;border-radius:22px;background:var(--coral);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);font:700 26px var(--zh);color:var(--ink);animation:nudge 1.4s ease-in-out infinite}
 .pnrow{gap:10px}
 .tip.ghost,.teachbar.ghost{visibility:hidden}
+.hab{display:inline-flex;flex-direction:column;vertical-align:top}
+.unexplored{opacity:.4}
 .stampbtn.selfchk{background:#9fd3e8;color:var(--ink)!important}.stampbtn.selfchk.on{background:var(--card)}
 #titleLock{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;position:relative;padding:4px 6px;border-radius:10px;background:linear-gradient(90deg,#ffb39966 0 0) no-repeat 0 0/0% 100%}
 #titleLock.holding{background-size:100% 100%;transition:background-size var(--hold,3s) linear}
@@ -878,7 +880,90 @@ function shinyCol(hex){
   const [R,G,B]=h<60?[C,X,0]:h<120?[X,C,0]:h<180?[0,C,X]:h<240?[0,X,C]:h<300?[X,0,C]:[C,0,X];
   return '#'+[R,G,B].map(v=>Math.round((v+m)*255).toString(16).padStart(2,'0')).join('');
 }
-function kaijuSVG(k, opt={}){
+// 進化造型原型：Lv.1 只有頭、Lv.2 半身（肩膀＋手臂＋肚子）、MAX 全身（再加腳和尾巴）
+function kaijuEvoSVG(k,opt={}){
+  const lv=opt.lv||1,size=opt.size||100;
+  if(lv===1||opt.locked)return kaijuHeadSVG(k,opt);
+  const head=kaijuHeadSVG(k,Object.assign({},opt,{size:100,lv})).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'').replace(/<circle cx="50" cy="56" r="54"[^>]*stroke-dasharray[^>]*\/>/,'');
+  const C=opt.shiny?{b:shinyCol(k.b),l:shinyCol(k.l),s:shinyCol(k.s)==='rainbow'?'#6a5acd':shinyCol(k.s),e:shinyCol(k.e)}:{b:k.b,l:k.l,s:k.s==='rainbow'?'#6a5acd':k.s,e:k.e||'#ffe14d'};
+  const ink='#1b1420',gold='#ffd400',max=lv===3;
+  const num=(parseInt(String(k.id).replace(/\D/g,''),10)||0);
+  // 體型：寬頭、圓頭的比較胖，高頭的比較瘦，其他照編號輪流
+  const BUILD={fat:1.32,normal:1,thin:0.78};
+  const build=k.build||(k.hd==='wide'||k.hd==='round'?'fat':k.hd==='tall'?'thin':['normal','fat','thin'][num%3]);
+  const sx=BUILD[build]||1,X=x=>+(50+(x-50)*sx).toFixed(1);
+  // 動作：每隻怪獸固定一種姿勢
+  // a：左右手角度、len：手長（暴龍小短手）、tilt：身體前傾、legs：站姿、tail：尾巴、ts：尾巴在哪一邊（-1 左）
+  const POSES={
+    trex:{a:[-35,-35],len:.6,tilt:7,legs:'stride',tail:'side',ts:1},
+    raptor:{a:[-65,-60],len:.85,tilt:10,legs:'stride',tail:'up',ts:-1},
+    wave:{a:[25,155],len:1,tilt:0,legs:'stand',tail:'up',ts:1},
+    flex:{a:[150,35],len:1,tilt:0,legs:'step',tail:'down',ts:-1},
+    claw:{a:[75,75],len:1,tilt:0,legs:'wide',tail:'down',ts:1},
+    stomp:{a:[-20,-25],len:.7,tilt:-6,legs:'step',tail:'curl',ts:-1},
+    cheer:{a:[125,125],len:1,tilt:0,legs:'stand',tail:'side',ts:-1},
+    point:{a:[165,30],len:1,tilt:4,legs:'stride',tail:'up',ts:1}};
+  const PNs=Object.keys(POSES),pose=k.pose||PNs[num%PNs.length],P0=POSES[pose],[aL,aR]=P0.a,AL=P0.len;
+  const clawC=max?gold:'#f3ead2';
+  const bot=max?140:134;
+  // 身體、手、腳、尾巴先合成一個外輪廓（先畫一層粗黑邊、再蓋上身體色），接縫就不會像拼上去的
+  const sil=[];   // [d, transform]
+  sil.push([`M${X(30)} 82 Q${X(16)} 90 ${X(12)} 108 Q${X(10)} 126 ${X(24)} ${bot} L${X(76)} ${bot} Q${X(90)} 126 ${X(88)} 108 Q${X(84)} 90 ${X(70)} 82 Z`,'']);
+  const armD='M-9 -6 Q-11 14 -6.5 27 Q0 33 6.5 27 Q11 14 9 -6 Z';
+  const armTf=(x,a)=>`translate(${x} 100) rotate(${a}) scale(${AL})`;
+  const arms=[[X(22),aL],[X(78),-aR]];
+  const tiny=AL<1;   // 暴龍那種縮在胸前的小短手：畫在肚子前面，有自己的外框
+  if(!tiny)arms.forEach(([x,a])=>{sil.push([armD,armTf(x,a)]);sil.push(['M-7 29 a7 7 0 1 0 14 0 a7 7 0 1 0 -14 0',armTf(x,a)])});
+  // 小短手：從肩膀長出來，肩膀那一端不畫黑線，跟身體自然接在一起
+  const frontArms=tiny?arms.map(([x,a])=>`<g transform="${armTf(x,a)}"><circle cx="0" cy="29" r="7" fill="${C.b}" stroke="${ink}" stroke-width="3.2"/><path d="M-10 -8 Q-12 14 -6.5 27 Q0 33 6.5 27 Q12 14 10 -8 Z" fill="${C.b}"/><path d="M-9.5 2 Q-11.5 14 -6.5 26.5 M9.5 2 Q11.5 14 6.5 26.5" fill="none" stroke="${ink}" stroke-width="3.2" stroke-linecap="round"/></g>`).join(''):'';
+  let tailSp='',legClaw='';
+  const spk=(x,y,a,s2)=>`<path d="M${x-s2*.35} ${y+3} L${x} ${y-s2} L${x+s2*.35} ${y+3} Z" fill="${C.s}" stroke="${ink}" stroke-width="3" stroke-linejoin="round" transform="rotate(${a} ${x} ${y})"/>`;
+  if(max){
+    const tx=X(70)-70,mir=P0.ts<0?' translate(100 0) scale(-1 1)':'';
+    const TAILS={
+      up:['M64 118 Q100 126 112 98 Q116 84 126 82 Q130 104 112 128 Q96 148 62 140 Z',[[106,118,20,11],[116,100,45,10],[122,86,70,9]]],
+      down:['M64 122 Q104 134 120 112 Q126 104 132 108 Q126 134 98 146 Q80 150 62 140 Z',[[104,130,30,11],[116,118,50,10],[126,108,70,9]]],
+      side:['M62 114 Q104 108 146 116 Q112 130 62 142 Z',[[90,116,8,11],[110,115,12,10],[128,116,16,8]]],
+      curl:['M62 126 Q100 152 128 142 Q142 132 132 120 Q128 134 104 140 Q84 144 62 140 Z',[[100,140,150,10],[118,138,130,9],[132,124,100,8]]]};
+    const [td,tsp]=TAILS[P0.tail]||TAILS.down,ttf=`translate(${tx*P0.ts} 0)${mir}`;
+    sil.push([td,ttf]);
+    tailSp=`<g transform="${ttf}">${tsp.map(([x,y,a,s2])=>spk(x,y,a,s2)).join('')}</g>`;
+    const legD=x=>`M${x-12} 124 L${x-14} 152 Q${x-15} 158 ${x-8} 158 L${x+8} 158 Q${x+14} 158 ${x+12} 152 L${x+10} 124 Z`;
+    const claws=x=>[-8,-1,6].map(d=>`<path d="M${x+d-2} 157 L${x+d+1} 164 L${x+d+4} 157" fill="${gold}" stroke="${ink}" stroke-width="1.6" stroke-linejoin="round"/>`).join('');
+    const L1=X(34),L2=X(66);
+    const LEGS={stand:[[L1,''],[L2,'']],
+      wide:[[L1-2,`rotate(10 ${L1} 132)`],[L2+2,`rotate(-10 ${L2} 132)`]],
+      step:[[L1,''],[L2,`translate(0 -8) rotate(-18 ${L2} 132)`]],
+      stride:[[L1,`rotate(${16*P0.ts} ${L1} 128)`],[L2,`rotate(${-14*P0.ts} ${L2} 128) translate(0 -2)`]]};
+    (LEGS[P0.legs]||LEGS.stand).forEach(([x,tf])=>{sil.push([legD(x),tf]);legClaw+=`<g transform="${tf}">${claws(x)}<path d="M${x-12} 136 L${x-14} 152 M${x+12} 136 L${x+12} 152" fill="none" stroke="${ink}" stroke-width="2.2" opacity=".5" stroke-linecap="round"/></g>`});
+  }
+  const shape=([d,tf],extra)=>`<path d="${d}"${tf?` transform="${tf}"`:''}${extra}/>`;
+  const outline=sil.map(x=>shape(x,` fill="${ink}" stroke="${ink}" stroke-width="6.4" stroke-linejoin="round"`)).join('');
+  const fillL=sil.map(x=>shape(x,` fill="${C.b}"`)).join('');
+  // 手臂內側淡淡的陰影線，手放在身體前面時還看得出來
+  const armShade=arms.map(([x,a])=>`<path d="M-9 4 Q-11 14 -6.5 27 M9 4 Q11 14 6.5 27" transform="${armTf(x,a)}" fill="none" stroke="${ink}" stroke-width="1.8" opacity=".35" stroke-linecap="round"/>`).join('');
+  const handClaws=arms.map(([x,a])=>`<g transform="${armTf(x,a)}">${[-5,0,5].map(d=>`<path d="M${d-2} 34 L${d} 42 L${d+2} 34 Z" fill="${clawC}" stroke="${ink}" stroke-width="1.6" stroke-linejoin="round"/>`).join('')}</g>`).join('');
+  let belly=`<path d="M${X(36)} 94 Q50 90 ${X(64)} 94 Q${X(70)} 112 ${X(64)} ${bot-4} L${X(36)} ${bot-4} Q${X(30)} 112 ${X(36)} 94 Z" fill="${C.l}" stroke="${ink}" stroke-width="2.6" stroke-linejoin="round"/>`;
+  for(let y=102;y<bot-6;y+=9)belly+=`<path d="M${X(36)} ${y} Q50 ${y+3} ${X(64)} ${y}" fill="none" stroke="${ink}" stroke-width="1.6" opacity=".55"/>`;
+  // 肚子：有的有一節一節的腹甲、有的只有淺色肚皮、有的什麼都沒有（跟胖瘦、動作分開輪流，組合更多）
+  const bellyKind=k.belly||['plate','oval','none'][Math.floor(num/2)%3];
+  if(bellyKind==='oval')belly=`<ellipse cx="50" cy="${(94+bot)/2}" rx="${(X(66)-X(34))/2}" ry="${(bot-96)/2}" fill="${C.l}" opacity=".9"/>`;
+  else if(bellyKind==='none')belly='';
+  const back=spk(X(16),96,-50,12)+spk(X(84),96,50,12);
+  // 背後的光
+  let fx='';
+  const vb=max?'-26 -14 176 176':'-18 -6 138 138';
+  if(max)fx=Array.from({length:16},(_,i)=>{const a=i*22.5*Math.PI/180;return `<path d="M${60+Math.cos(a)*78} ${78+Math.sin(a)*78} L${60+Math.cos(a+.08)*96} ${78+Math.sin(a+.08)*96} L${60+Math.cos(a-.08)*96} ${78+Math.sin(a-.08)*96} Z" fill="${gold}" opacity=".55"/>`}).join('')+`<circle cx="60" cy="78" r="86" fill="${C.e}" opacity=".18"/>`;
+  else fx=`<circle cx="50" cy="70" r="70" fill="${C.e}" opacity=".16"/>`;
+  return `<svg viewBox="${vb}" width="${size}" height="${size}" aria-hidden="true" class="kj">${fx}<g transform="rotate(${P0.tilt*(P0.ts||1)} 50 86)">${back}${outline}${fillL}${tailSp}${belly}${tiny?frontArms:armShade}${handClaws}${legClaw}</g><svg x="0" y="0" width="100" height="100" viewBox="0 0 100 100" overflow="visible">${head}</svg></svg>`;
+}
+// 進化造型：Lv.1 只有頭、Lv.2 半身、MAX 全身；關主怪獸一出現就是全身
+function kaijuSVG(k,opt={}){
+  if(opt.locked)return kaijuHeadSVG(k,opt);
+  const lv=k.r===4?3:(opt.lv||1);
+  return lv>=2?kaijuEvoSVG(k,Object.assign({},opt,{lv})):kaijuHeadSVG(k,opt);
+}
+function kaijuHeadSVG(k, opt={}){
   if(opt.shiny&&!opt.locked)k=Object.assign({},k,{id:k.id+'sh',b:shinyCol(k.b),l:shinyCol(k.l),s:shinyCol(k.s),e:shinyCol(k.e)});
   const sil = opt.locked;
   const ink = sil ? '#2c3850' : BORDER;
@@ -1921,7 +2006,7 @@ function badgesHTML(){
     return `<div class="mon r${k.r} ${locked?'locked':''} ${lv===3?'max':''}"><span class="no">FILE No.${String(i+1).padStart(2,'0')}</span>${n?`<span class="cnt">×${n}</span>`:''}
     ${!boss&&!locked?`<span class="lvtag">${lvText(lv)}</span>`:''}${sh?`<button class="shinyt ${view?'on':''}" data-shiny="${k.id}">${view?'看原色':'✨ 看異色'}</button>`:''}
     ${kaijuSVG(k,{size:110,locked,lv,shiny:view})}${locked?'<span class="stampc">CLASSIFIED</span>':''}<b>${locked?'機密資料':esc(boss?k.n:evoName(k,lv))}</b><span class="rar">${RARITY[k.r]}</span>${evoUI}
-    <div class="facts"><span><i>威脅等級　</i>${THREAT[k.r]}</span><span><i>出沒地點　</i>${locked?'？？？':habitatHTML(k)}</span><span class="weakrow"><i>弱點　　　</i>${locked?'？？？':weakHTML(k)}</span></div>
+    <div class="facts"><span><i>威脅等級　</i>${THREAT[k.r]}</span><span><i>出沒地點　</i>${locked?habPad(['？？？']):habitatHTML(k)}</span><span class="weakrow"><i>弱點　　　</i>${locked?'？？？':weakHTML(k)}</span></div>
     <small>${locked?(k.r===4?'這一區關卡全部走完、單字全部學會就會現身':'繼續答對題目就有機會遇到'):'老家：'+esc(k.h)+'。'+esc(k.d)}</small></div>`};
   const got=BADGES.filter(b=>P.badges[b.id]).length;
   return `<div class="top"><button class="iconbtn" id="home">← 作戰地圖</button><div class="crumb"><b>MONSTER FILES</b></div>${kjChip()}<span class="chip" id="chip"></span></div>
@@ -1947,11 +2032,22 @@ function keyText(k){const p=k.split('|');if(p.length<4)return null;const cut=p[1
 function weaknessOf(id){return [...new Set(Object.keys(P.got).sort((a,b)=>(P.got[b]||'').localeCompare(P.got[a]||'')).filter(k=>speciesOf(k).id===id).map(keyText).filter(Boolean))]}
 // 出沒地點＝他在作戰地圖哪一區抓到這隻怪獸
 const sectorName=uid=>REGION[uid]?REGION[uid].name:'';
+// 每隻怪獸出沒的區域數不一樣（2～5 個），補空白行到同樣行數，圖鑑卡片長度才一致
+let habMaxCache={};
+function habMax(){const c=(curCourse()||{}).id||'';if(habMaxCache[c])return habMaxCache[c];
+  const uidOf=x=>{const t=x.split('|')[1]||'';return t.slice(0,t.indexOf('-'))};const per={};
+  allKeys().forEach(x=>{const sp=speciesOf(x);if(sp){(per[sp.id]=per[sp.id]||new Set()).add(uidOf(x))}});
+  return habMaxCache[c]=Math.max(1,...Object.values(per).map(v=>v.size))}
+function habPad(lines){const n=habMax();const out=lines.map(l=>l.startsWith('<span')?l:`<span>${l}</span>`);while(out.length<n)out.push('<span class="habpad">&nbsp;</span>');return '<span class="hab">'+out.join('')+'</span>'}
 function habitatHTML(k){
-  if(k.r===4){const uid=Object.keys(BOSSES).find(id=>BOSSES[id]===k);return esc(sectorName(uid))}
-  const ids=[...new Set(Object.keys(P.got).filter(x=>speciesOf(x).id===k.id).map(x=>{const t=x.split('|')[1]||'';return t.slice(0,t.indexOf('-'))}))]
-    .filter(uid=>UNITS.some(u=>u.id===uid)).sort((a,b)=>UNITS.findIndex(u=>u.id===a)-UNITS.findIndex(u=>u.id===b));
-  return ids.length?ids.map(uid=>esc(sectorName(uid))).join('<br>'):'？？？';
+  if(k.r===4){const uid=Object.keys(BOSSES).find(id=>BOSSES[id]===k);return habPad([esc(sectorName(uid))])}
+  // 列出牠會出沒的所有區域：抓到過的打勾，還沒去過的用灰色字，引導孩子去那一區學剩下的弱點單字
+  const uidOf=x=>{const t=x.split('|')[1]||'';return t.slice(0,t.indexOf('-'))};
+  const mine=x=>{const sp=speciesOf(x);return sp&&sp.id===k.id};
+  const all=new Set(allKeys().filter(mine).map(uidOf)),got=new Set(Object.keys(P.got).filter(mine).map(uidOf));
+  const ids=UNITS.map(u=>u.id).filter(uid=>all.has(uid));
+  if(!ids.length)return habPad(['？？？']);
+  return habPad(ids.map(uid=>got.has(uid)?`<span>${esc(sectorName(uid))} ✓</span>`:`<span class="unexplored">${esc(sectorName(uid))}</span>`));
 }
 function weakHTML(k){
   if(k.r===4){const u=Object.keys(BOSSES).find(id=>BOSSES[id]===k);return '這一區的全部單字'}
