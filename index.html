@@ -366,9 +366,11 @@ body.night .teachbtn.cur{background:var(--n-yellow);border-color:var(--n-yellow)
 .me .stat.who{flex-direction:column;align-items:flex-start;gap:0;line-height:1.2}
 .me .stat.who span{font-size:12px}
 .stulist{display:grid;gap:8px;margin:6px 0 10px}
-.sturow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.6fr) auto;gap:8px;align-items:center;padding:8px;border:2px solid var(--line, #e7cdb8);border-radius:14px;background:#fff8}
+.sturow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.6fr) auto auto;gap:8px;align-items:center;padding:8px;border:2px solid var(--line, #e7cdb8);border-radius:14px;background:#fff8}
 .sturow.cur{border-color:var(--coral);background:#fff}
 .sturow input,.sturow select{min-width:0;font:16px var(--zh);padding:8px 10px;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink)}
+.sturow .studelask{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sturow .studelask[hidden]{display:none}
 .sturow .stucur{font-weight:700;color:var(--coral);padding:0 8px;white-space:nowrap}
 .sturow .big{padding:8px 14px;min-height:0}
 body.night .nocourse{color:var(--n-text)}body.night .nocourse p{color:var(--n-text);opacity:.75}
@@ -568,7 +570,7 @@ const STEP_DEFS = {
     {type:'quiz',mode:'read',label:'看圖選單字',min:3,tip:'<b>帶法：</b>請他先把選項念出來再選，練習「看字念音」。'},
     {type:'write',label:'寫寫看',min:5,items:t.words.map(w=>w.en),tip:'<b>帶法：</b>他用藍筆描淡灰色範字，你用紅筆圈出要修正的地方。寫得好就按「👍 蓋章」送他一隻怪獸。描熟了可以關掉範字讓他自己寫。'}],
   phonics:t=>[
-    {type:'phonics',label:'發音規則',min:5,tip:'<b>帶法：</b>先念紅色的字母組合，再念整個字。例如「a_e 念 ㄟ → c-a-ke → cake」。'},
+    {type:'phonics',label:'發音規則',min:5,tip:t.tip||'<b>帶法：</b>先念紅色的字母組合，再念整個字。例如「a_e 念 ㄟ → c-a-ke → cake」。'},
     {type:'quiz',mode:'listen',label:'聽音選字',min:4,tip:'<b>帶法：</b>播放後讓他選，再請他把答案念一遍。'},
     {type:'write',label:'寫寫看',min:5,items:t.groups.flatMap(g=>g.words.map(w=>w.en)),tip:'<b>帶法：</b>一邊寫一邊念，寫到紅色那幾個字母時特別念出聲音。'}],
   pattern:t=>[
@@ -579,12 +581,133 @@ const STEP_DEFS = {
 };
 HANLIN5A.forEach(u=>u.topics.forEach(t=>t.steps=STEP_DEFS[t.kind](t)));
 
+/* ===================== 翰林 Here We Go 1（三上） =====================
+   依各校公開的 Here We Go 1 課程計畫整理：Starter、Unit 1～4、萬聖節。
+   字母的例字課本沒有列出來，這裡用常見、看得懂圖的字。 */
+const LT='<b>帶法：</b>先念大寫和小寫字母的名字，再念它的聲音和例字。例如「A、a，/æ/，apple」。';
+const HANLIN3A = [
+ {id:'st', en:'Starter', zh:'Hello!', topics:[
+  {id:'num', kind:'vocab', title:'數字 1–5', goal:'聽懂、說出、寫出 one 到 five',
+   words:[W('one','一','1'),W('two','二','2'),W('three','三','3'),W('four','四','4'),W('five','五','5')],
+   phrases:[['Hi! I\'m Edison.','嗨！我是 Edison。'],['Hello!','哈囉！']],
+   note:'打招呼可以說 <span class="en">Hi!</span> 或 <span class="en">Hello!</span>，再說 <span class="en">I\'m ...</span> 介紹自己。'},
+  {id:'ab', kind:'phonics', title:'字母 Aa–Ee', goal:'認得 Aa 到 Ee 的大小寫和聲音', tip:LT,
+   groups:[{p:'Aa',s:'/æ/',words:[W('apple','蘋果','🍎'),W('ant','螞蟻','🐜')]},
+           {p:'Bb',s:'/b/',words:[W('bear','熊','🐻'),W('ball','球','⚽')]},
+           {p:'Cc',s:'/k/',words:[W('cat','貓','🐱'),W('cup','杯子','🥤')]},
+           {p:'Dd',s:'/d/',words:[W('dog','狗','🐶'),W('duck','鴨子','🦆')]},
+           {p:'Ee',s:'/ɛ/',words:[W('egg','蛋','🥚'),W('elephant','大象','🐘')]}]}
+ ]},
+ {id:'u1', en:'Unit 1', zh:'What\'s Your Name?', topics:[
+  {id:'p', kind:'pattern', title:'你叫什麼名字？', goal:'會問別人的名字，也會介紹自己',
+   dialog:[['What\'s your name?','你叫什麼名字？','My name is Abu.','我的名字是 Abu。'],
+           ['What\'s your name?','你叫什麼名字？','I\'m Mia.','我是 Mia。'],
+           ['Hi! I\'m Edison.','嗨！我是 Edison。','Hello! I\'m Amber.','哈囉！我是 Amber。'],
+           ['How are you?','你好嗎？','I\'m fine.','我很好。']],
+   phrases:[['How are you?','你好嗎？'],['I\'m fine.','我很好。']],
+   note:'故事裡的人物：<span class="en">Abu、Amber、Edison、Mia、Rocky、Teddy</span>。名字的第一個字母一定<b>大寫</b>。',
+   build:['What\'s your name?','My name is Abu.','I\'m Mia.','How are you?'],
+   qa:[['What\'s your name?','My name is Teddy.',['I\'m fine.','I\'m ten.','It\'s red.']],
+       ['How are you?','I\'m fine.',['My name is Mia.','It\'s a pen.','Thank you.']],
+       ['Hi! I\'m Rocky.','Hello! I\'m Amber.',['Good job!','It\'s blue.','You\'re welcome.']]],
+   write:['What\'s your name?','My name is Abu.','I\'m Mia.','How are you?','I\'m fine.']},
+  {id:'ph', kind:'phonics', title:'字母 Ff–Jj', goal:'認得 Ff 到 Jj 的大小寫和聲音', tip:LT,
+   groups:[{p:'Ff',s:'/f/',words:[W('fish','魚','🐟'),W('fox','狐狸','🦊')]},
+           {p:'Gg',s:'/g/',words:[W('goat','山羊','🐐'),W('girl','女孩','👧')]},
+           {p:'Hh',s:'/h/',words:[W('hat','帽子','🎩'),W('hen','母雞','🐔')]},
+           {p:'Ii',s:'/ɪ/',words:[W('insect','昆蟲','🐛'),W('igloo','冰屋','🛖')]},
+           {p:'Jj',s:'/dʒ/',words:[W('juice','果汁','🧃'),W('jam','果醬','🍯')]}]}
+ ]},
+ {id:'u2', en:'Unit 2', zh:'How Old Are You?', topics:[
+  {id:'w', kind:'vocab', title:'數字 6–10', goal:'聽懂、說出、寫出 six 到 ten',
+   words:[W('six','六','6'),W('seven','七','7'),W('eight','八','8'),W('nine','九','9'),W('ten','十','10')],
+   note:'<span class="en">eight</span> 的 gh 不發音，念起來像「ㄟˋ特」。'},
+  {id:'p', kind:'pattern', title:'你幾歲？', goal:'會問別人幾歲，也會回答自己的年紀',
+   dialog:[['How old are you?','你幾歲？','I\'m ten.','我十歲。'],
+           ['How old are you?','你幾歲？','I\'m nine years old.','我九歲。'],
+           ['Thank you.','謝謝你。','You\'re welcome.','不客氣。']],
+   phrases:[['Thank you.','謝謝你。'],['You\'re welcome.','不客氣。']],
+   note:'回答可以說 <span class="en">I\'m ten.</span>，也可以說完整一點 <span class="en">I\'m ten years old.</span>',
+   build:['How old are you?','I\'m ten.','I\'m nine years old.','You\'re welcome.'],
+   qa:[['How old are you?','I\'m eight.',['I\'m fine.','My name is Mia.','It\'s a book.']],
+       ['Thank you.','You\'re welcome.',['I\'m fine.','I\'m ten.','Good afternoon.']],
+       ['How old are you?','I\'m nine years old.',['It\'s nine.','Yes, I am.','I\'m Abu.']]],
+   write:['How old are you?','I\'m ten.','I\'m nine years old.','Thank you.','You\'re welcome.']},
+  {id:'ph', kind:'phonics', title:'字母 Kk–Oo', goal:'認得 Kk 到 Oo 的大小寫和聲音', tip:LT,
+   groups:[{p:'Kk',s:'/k/',words:[W('kite','風箏','🪁'),W('king','國王','👑')]},
+           {p:'Ll',s:'/l/',words:[W('lion','獅子','🦁'),W('lemon','檸檬','🍋')]},
+           {p:'Mm',s:'/m/',words:[W('monkey','猴子','🐵'),W('milk','牛奶','🥛')]},
+           {p:'Nn',s:'/n/',words:[W('nose','鼻子','👃'),W('nut','堅果','🥜')]},
+           {p:'Oo',s:'/ɑ/',words:[W('octopus','章魚','🐙'),W('ox','公牛','🐂')]}]}
+ ]},
+ {id:'u3', en:'Unit 3', zh:'What\'s This?', topics:[
+  {id:'w', kind:'vocab', title:'文具的單字', goal:'認得並寫出 6 種文具',
+   words:[W('a book','一本書','📕'),W('a pencil','一枝鉛筆','✏️'),W('a pen','一枝原子筆','🖊️'),
+          W('an eraser','一個橡皮擦','擦'),W('a ruler','一把尺','📏'),W('a marker','一枝麥克筆','🖍️')],
+   note:'<span class="en">eraser</span> 開頭是母音 e，前面要用 <span class="en">an</span>，不是 a。'},
+  {id:'p', kind:'pattern', title:'這是什麼？', goal:'會問近的、遠的東西是什麼，並回答',
+   dialog:[['What\'s this?','這是什麼？','It\'s a book.','它是一本書。'],
+           ['What\'s that?','那是什麼？','It\'s an eraser.','它是一個橡皮擦。'],
+           ['What\'s this?','這是什麼？','It\'s a ruler.','它是一把尺。'],
+           ['Good job!','做得好！','Thanks!','謝謝！']],
+   phrases:[['Cool!','好酷！'],['Good job!','做得好！'],['Thanks!','謝謝！']],
+   note:'近的東西用 <span class="en">this</span>，遠的用 <span class="en">that</span>；回答都用 <span class="en">It\'s ...</span>',
+   build:['What\'s this?','It\'s a book.','What\'s that?','It\'s an eraser.'],
+   qa:[['What\'s this?','It\'s a pencil.',['I\'m fine.','I\'m ten.','My name is Abu.']],
+       ['What\'s that?','It\'s an eraser.',['It\'s a eraser.','Yes, it is.','Thank you.']],
+       ['Good job!','Thanks!',['It\'s a pen.','I\'m nine.','What\'s this?']]],
+   write:['What\'s this?','It\'s a book.','What\'s that?','It\'s an eraser.']},
+  {id:'ph', kind:'phonics', title:'字母 Pp–Tt', goal:'認得 Pp 到 Tt 的大小寫和聲音', tip:LT,
+   groups:[{p:'Pp',s:'/p/',words:[W('pig','豬','🐷'),W('panda','貓熊','🐼')]},
+           {p:'Qq',s:'/kw/',words:[W('queen','皇后','👸'),W('quiet','安靜','🤫')]},
+           {p:'Rr',s:'/r/',words:[W('rabbit','兔子','🐰'),W('robot','機器人','🤖')]},
+           {p:'Ss',s:'/s/',words:[W('sun','太陽','☀️'),W('sock','襪子','🧦')]},
+           {p:'Tt',s:'/t/',words:[W('tiger','老虎','🐯'),W('tomato','番茄','🍅')]}]}
+ ]},
+ {id:'u4', en:'Unit 4', zh:'What Color Is It?', topics:[
+  {id:'w', kind:'vocab', title:'顏色的單字', goal:'認得並寫出 6 種顏色',
+   words:[W('blue','藍色','🔵'),W('green','綠色','🟢'),W('red','紅色','🔴'),
+          W('yellow','黃色','🟡'),W('black','黑色','⚫'),W('white','白色','⚪')],
+   note:'<span class="en">yellow</span> 有兩個 l；<span class="en">white</span> 的 h 幾乎不發音。'},
+  {id:'p', kind:'pattern', title:'它是什麼顏色？', goal:'會問東西的顏色，並回答',
+   dialog:[['What color is it?','它是什麼顏色？','It\'s blue.','它是藍色。'],
+           ['What color is it?','它是什麼顏色？','It\'s red and yellow.','它是紅色和黃色。'],
+           ['Good morning.','早安。','Good morning.','早安。'],
+           ['Good afternoon.','午安。','Good afternoon.','午安。']],
+   phrases:[['Good morning.','早安。'],['Good afternoon.','午安。']],
+   note:'問顏色用 <span class="en">What color is it?</span>，回答 <span class="en">It\'s + 顏色.</span>，顏色前面不用加 a。',
+   build:['What color is it?','It\'s blue.','Good morning.','Good afternoon.'],
+   qa:[['What color is it?','It\'s green.',['It\'s a green.','I\'m green.','Yes, it is.']],
+       ['Good morning.','Good morning.',['Good job!','You\'re welcome.','It\'s white.']],
+       ['What color is it?','It\'s black and white.',['It\'s a pen.','I\'m fine.','Thanks!']]],
+   write:['What color is it?','It\'s blue.','It\'s red and yellow.','Good morning.']},
+  {id:'ph', kind:'phonics', title:'字母 Uu–Zz', goal:'認得 Uu 到 Zz 的大小寫和聲音', tip:LT,
+   groups:[{p:'Uu',s:'/ʌ/',words:[W('umbrella','雨傘','☂️'),W('up','往上','⬆️')]},
+           {p:'Vv',s:'/v/',words:[W('van','廂型車','🚐'),W('violin','小提琴','🎻')]},
+           {p:'Ww',s:'/w/',words:[W('watch','手錶','⌚'),W('water','水','💧')]},
+           {p:'Xx',s:'/ks/',words:[W('box','箱子','📦'),W('six','六','6')]},
+           {p:'Yy',s:'/j/',words:[W('yo-yo','溜溜球','🪀'),W('yes','是','✅')]},
+           {p:'Zz',s:'/z/',words:[W('zebra','斑馬','🦓'),W('zero','零','0')]}]}
+ ]},
+ {id:'xm', en:'Festival', zh:'Halloween', topics:[
+  {id:'w', kind:'vocab', title:'萬聖節', goal:'認得萬聖節的東西，會說 Happy Halloween!',
+   words:[W('a pumpkin','南瓜','🎃'),W('a ghost','鬼','👻'),W('a bat','蝙蝠','🦇'),W('a witch','女巫','🧙'),W('candy','糖果','🍬')],
+   phrases:[['Happy Halloween!','萬聖節快樂！'],['Trick or treat!','不給糖就搗蛋！']],
+   note:'課程計畫沒有列出萬聖節單字，這裡是常見的補充字。'}
+ ]}
+];
+HANLIN3A.forEach(u=>u.topics.forEach(t=>t.steps=STEP_DEFS[t.kind](t)));
+
 /* ===================== 課程庫 =====================
    一本課本＝一筆。之後要加別的出版社或別冊，就在這裡多加一本：
    COURSES['kang-3a']={id:'kang-3a',name:'康軒 Follow Me 3 上',short:'三上英文',grade:3,units:[...]};
    每個學生在「⚙️ 設定」選自己上哪一本，紀錄會依「學生＋課本」分開存。 */
 const COURSES={
   'hanlin-5a':{id:'hanlin-5a',name:'翰林 Here We Go 5 上',short:'五上英文',grade:5,units:HANLIN5A},
+  'hanlin-3a':{id:'hanlin-3a',name:'翰林 Here We Go 1（三上）',short:'三上英文',grade:3,units:HANLIN3A,
+    unitBadges:{st:['🔤','字母起步','完成 Starter 全部主題'],u1:['👋','自我介紹王','完成 Unit 1 全部主題'],u2:['🎂','年齡小達人','完成 Unit 2 全部主題'],
+      u3:['✏️','文具小管家','完成 Unit 3 全部主題'],u4:['🎨','色彩魔法師','完成 Unit 4 全部主題'],xm:['🎃','萬聖節小鬼','完成萬聖節主題']},
+    regions:{st:'字母營地',u1:'名字森林',u2:'生日樹屋',u3:'文具小鎮',u4:'彩虹草原',xm:'南瓜城堡'}},
 };
 let UNITS=[];
 
@@ -815,7 +938,7 @@ const kidName=()=>(curStu()||{}).name||'孩子';
 const penKidLabel=()=>role==='mom'&&status!=='on'?'孩子':kidName();
 const curCourse=()=>COURSES[(curStu()||{}).course]||null;
 let TEXT2SP=null;
-function useCourse(){const c=curCourse();UNITS=c?c.units:[];TEXT2SP=null}
+function useCourse(){const c=curCourse();UNITS=c?c.units:[];TEXT2SP=null;try{applyCourseExtras()}catch(e){}}
 const progKey=()=>{const x=curStu();return 'prog:'+(x?x.id:'s1')+':'+((x&&x.course)||'none')};
 let studentsAt=store.get('studentsAt',0);   // 學生名單最後修改時間：試算表、兩台平板之間用比較新的那份
 function saveStudents(){studentsAt=Date.now();store.set('students',STUDENTS);store.set('studentsAt',studentsAt)}
@@ -944,7 +1067,7 @@ function unitMissing(id){const u=UNITS.find(x=>x.id===id);if(!u)return {topics:1
   const words=u.topics.filter(t=>t.kind==='vocab').reduce((n,t)=>n+t.words.filter(w=>!isMastered(u.id+'-'+t.id,w.en,true)).length,0);
   return {topics,words}}
 const unitDone=id=>{const m=unitMissing(id);return m.topics===0&&m.words===0};
-const BADGES=[
+const ALL_BADGES=[
   {id:'first',i:'🎒',n:'第一次上課',d:'完成第一個主題',ok:()=>Object.keys(P.topics).length>=1},
   {id:'st',i:'🔢',n:'數字小高手',d:'完成 Starter 全部主題',ok:()=>unitDone('st')},
   {id:'u1',i:'📅',n:'星期小達人',d:'完成 Unit 1 全部主題',ok:()=>unitDone('u1')},
@@ -952,9 +1075,9 @@ const BADGES=[
   {id:'u3',i:'🗺️',n:'社區小嚮導',d:'完成 Unit 3 全部主題',ok:()=>unitDone('u3')},
   {id:'u4',i:'🦁',n:'動物園長',d:'完成 Unit 4 全部主題',ok:()=>unitDone('u4')},
   {id:'xm',i:'🎄',n:'耶誕小精靈',d:'完成耶誕節主題',ok:()=>unitDone('xm')},
-  {id:'phon',i:'🔤',n:'發音小達人',d:'完成全部 5 個發音主題',ok:()=>UNITS.every(u=>u.topics.filter(t=>t.kind==='phonics').every(t=>P.topics[u.id+'-'+t.id]))},
+  {id:'phon',i:'🔤',n:'發音小達人',d:'完成全部發音主題',ok:()=>UNITS.every(u=>u.topics.filter(t=>t.kind==='phonics').every(t=>P.topics[u.id+'-'+t.id]))},
   {id:'perfect',i:'💯',n:'全部答對',d:'一次測驗全部答對',ok:()=>false},
-  {id:'wed',i:'✍️',n:'Wednesday 寫對了',d:'寫 Wednesday 拿到'+PN()+'的印章',ok:()=>false},
+  {id:'wed',course:'hanlin-5a',i:'✍️',n:'Wednesday 寫對了',d:'寫 Wednesday 拿到'+PN()+'的印章',ok:()=>false},
   {id:'stamp10',i:'💮',n:''+PN()+'的印章 ×10',d:'收集 10 個'+PN()+'印章',ok:()=>stampCount()>=10},
   {id:'stamp30',i:'🏵️',n:''+PN()+'的印章 ×30',d:'收集 30 個'+PN()+'印章',ok:()=>stampCount()>=30},
   {id:'star50',i:'🥚',n:'怪獸訓練師',d:'總共抓到 50 隻怪獸',ok:()=>starCount()>=50},
@@ -969,6 +1092,18 @@ const BADGES=[
   {id:'all',i:'👑',n:'全部破關',d:'完成全部主題',ok:()=>allTopics().every(([u,t])=>P.topics[tidOf(u,t)])}
 ];
 const UNIT_BADGE={st:'st',u1:'u1',u2:'u2',u3:'u3',u4:'u4',xm:'xm'};
+// 每本課本的關卡徽章名稱、地圖區域名稱不同；換課本時套用
+let BADGES=ALL_BADGES;
+const BADGE_DEF={};ALL_BADGES.forEach(b=>BADGE_DEF[b.id]=[b.i,b.n,b.d]);
+let REGION_DEF=null;
+function applyCourseExtras(){
+  const c=curCourse()||{};
+  BADGES=ALL_BADGES.filter(b=>!b.course||b.course===c.id);
+  ALL_BADGES.forEach(b=>{const o=(c.unitBadges||{})[b.id]||BADGE_DEF[b.id];[b.i,b.n,b.d]=o});
+  try{if(!REGION_DEF){const d={};for(const k in REGION)d[k]=REGION[k].name;REGION_DEF=d}
+    for(const k in REGION)REGION[k].name=(c.regions||{})[k]||REGION_DEF[k]}catch(e){}   // REGION 在檔案後面才定義
+}
+applyCourseExtras();
 
 let celeQueue=[];
 function grantBadge(id){if(P.badges[id])return false;P.badges[id]=today();const b=BADGES.find(x=>x.id===id);logEv('獲得徽章：'+b.n);celeQueue.push(id);return true}
@@ -1119,7 +1254,13 @@ function kidIdentify(){
 
 /* ===================== 連線（PeerJS，不用帳號） ===================== */
 const PREFIX='hlwow5-';
-let peer=null, conn=null, status='off', retryT=null, busyName='', busyTold={}, handedOff=false, takeoverAt=0, lastCodeCheck=0;   // 孩子連不到時，每 20 秒到試算表看一下教室代碼有沒有換
+// 兩台在不同網路（不同家、4G）時，直接連線常會被擋，要透過中繼（TURN）伺服器轉送
+const PEER_OPTS={debug:0,config:{iceServers:[
+  {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478']},
+  {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp','turns:openrelay.metered.ca:443'],username:'openrelayproject',credential:'openrelayproject'}
+]}};
+let kidFails=0,kidOpenT=null;
+let momReady=false, peer=null, conn=null, status='off', retryT=null, busyName='', busyTold={}, handedOff=false, takeoverAt=0, lastCodeCheck=0;   // 孩子連不到時，每 20 秒到試算表看一下教室代碼有沒有換
 function setStatus(s){const was=status;status=s;renderChip();if(role==='kid'&&nav.u===-1&&(was==='on')!==(s==='on'))render()}
 function send(m){if(conn&&conn.open){try{conn.send(m)}catch(e){}}}
 function wire(c){
@@ -1138,7 +1279,7 @@ function takeOver(){
   if(typeof Peer==='undefined')return;
   handedOff=false;takeoverAt=Date.now();toast('正在把教室換到這台…（約 5～10 秒）');
   let done=false;const fin=()=>{if(done)return;done=true;try{tmp.destroy()}catch(e){}setTimeout(startMom,1200)};
-  const tmp=new Peer(undefined,{debug:0});
+  const tmp=new Peer(undefined,PEER_OPTS);
   tmp.on('open',()=>{const c=tmp.connect(PREFIX+code,{reliable:true});c.on('open',()=>{try{c.send({t:'takeover'})}catch(e){}setTimeout(fin,800)});setTimeout(fin,6000)});
   tmp.on('error',fin);
 }
@@ -1146,10 +1287,10 @@ function startMom(){
   if(typeof Peer==='undefined'){toast('連線元件沒有載入，請確認網路後重新整理');return}
   if(!code){code=String(Math.floor(100000+Math.random()*900000));store.set('code',code)}
   role='mom';store.set('role','mom');
-  if(peer)peer.destroy();
-  peer=new Peer(PREFIX+code,{debug:0});
+  if(peer)peer.destroy();momReady=false;
+  peer=new Peer(PREFIX+code,PEER_OPTS);
   if(status!=='taken')setStatus('wait');
-  peer.on('open',()=>{takeoverAt=0;if(status==='taken'){setStatus('wait');toast('教室已經在這台開好了');if(nav.u===-1)render()}});
+  peer.on('open',()=>{takeoverAt=0;momReady=true;renderChip();if(status==='taken'){setStatus('wait');toast('教室已經在這台開好了');if(nav.u===-1)render()}});
   peer.on('connection',c=>{
     // 先不換掉目前的連線：等這台說自己是誰，是媽媽正在陪的那個孩子才接進來
     const tell=m=>{try{c.send(m)}catch(e){}};
@@ -1178,9 +1319,15 @@ function startKid(c){
   code=c;store.set('code',c);role='kid';store.set('role','kid');
   if(peer)peer.destroy();
   if(status!=='busy')setStatus('wait');
-  peer=new Peer({debug:0});
+  peer=new Peer(PEER_OPTS);
+  clearTimeout(kidOpenT);
+  // 15 秒還連不上就重來一次；連續失敗時提示可能是網路擋住
+  kidOpenT=setTimeout(()=>{if(role!=='kid'||status==='on'||status==='busy'||status==='nomom')return;kidFails++;
+    if(kidFails===2)toast('連不上'+PN()+'的教室，正在重試…（兩邊網路不同時可能要多等一下）');
+    if(kidFails===5)toast('一直連不上：請兩邊都重新整理網頁；還是不行請告訴'+PN());
+    startKid(c)},15000);
   peer.on('open',()=>{const cc=peer.connect(PREFIX+c,{reliable:true});conn=cc;wire(cc);
-    cc.on('open',()=>{send({t:'hello'})})});
+    cc.on('open',()=>{kidFails=0;clearTimeout(kidOpenT);send({t:'hello'})})});
   peer.on('error',e=>{if(e.type==='peer-unavailable'){busyName='';setStatus('nomom');scheduleRetry();if(sheetURL&&(!store.get('sid',null)||Date.now()-lastCodeCheck>20000)){lastCodeCheck=Date.now();loadSheet()}}else{setStatus('err');scheduleRetry()}});
   peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
   render();
@@ -1250,7 +1397,7 @@ function flash(hk){if(!hk)return;const el=document.querySelector(`[data-hk="${hk
 /* ===================== 畫面 ===================== */
 function renderChip(){
   const el=$('#chip');if(!el)return;
-  const map={off:['','未連線'],wait:['wait',role==='mom'?`等孩子加入（代碼 ${code}）`:'連線中…'],on:['on',role==='mom'?kidName()+'已連線':'已連上'+PN()+''],nomom:['','自己練習中'],taken:['wait','教室在另一台裝置開著'],busy:['','自己練習中'],err:['wait','網路不穩，重新連線中…']};
+  const map={off:['','未連線'],wait:['wait',role==='mom'?(momReady?`等孩子加入（代碼 ${code}）`:'教室開啟中…'):'連線中…'],on:['on',role==='mom'?kidName()+'已連線':'已連上'+PN()+''],nomom:['','自己練習中'],taken:['wait','教室在另一台裝置開著'],busy:['','自己練習中'],err:['wait','網路不穩，重新連線中…']};
   const [c,t]=map[status]||map.off;el.className='chip '+c;el.innerHTML=`<span class="dot"></span>${esc(t)}`;
 }
 // 設定打開時：正在打字就先不重畫（不然鍵盤會收起、視窗會不見）；重畫後設定維持打開、畫面停在原位
@@ -1327,6 +1474,7 @@ const REGION={
   u4:{name:'動物草原',tint:'#ffd400',deco:['palm','foot','claw','radar']},
   xm:{name:'雪花城堡',tint:'#ff5cd2',deco:['snow','gift','tower','snow']}
 };
+applyCourseExtras();
 // 霓虹線條圖示（配合夜晚怪獸電影風）
 const ICON={
   tent:'M10 82 L50 18 L90 82 Z M50 18 L50 82 M38 82 L50 58 L62 82 M4 82 L96 82',
@@ -1480,7 +1628,10 @@ function studentsHTML(){
       <input class="stuname" value="${esc(x.name)}" maxlength="8" aria-label="名字">
       <select class="stugrade" aria-label="年級">${GRADES.map(g=>`<option value="${g}" ${+x.grade===g?'selected':''}>${g} 年級</option>`).join('')}</select>
       <select class="stucourse" aria-label="課本"><option value="">還沒安排課程</option>${Object.values(COURSES).map(c=>`<option value="${c.id}" ${x.course===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
-      ${cur?'<span class="stucur">目前</span>':`<button class="big ghost stuuse" ${locked?'disabled':''}>切換</button>`}</div>`}).join('')}</div>
+      ${cur?'<span class="stucur">目前</span>':`<button class="big ghost stuuse" ${locked?'disabled':''}>切換</button>`}
+      ${cur||STUDENTS.length<=1?'':'<button class="big ghost studel" title="刪除">刪除</button>'}
+      <div class="studelask" hidden><span class="hint wipewarn">確定刪除「${esc(x.name)}」？他的平板下次連線會重新問「你是誰？」。試算表裡的紀錄會保留。</span><button class="big wipeyes stuyes">確定刪除</button><button class="big ghost stuno">取消</button></div></div>`}).join('')}</div>
+    <p class="hint">要刪除目前選著的學生，請先切換到別人。</p>
     <div class="row"><button class="big ghost" id="stuAdd">＋ 新增學生</button>${locked?`<span class="hint">正在陪${esc(kidName())}；要換人請用首頁的「現在要陪」。</span>`:''}</div>`;
 }
 function parentLink(){return location.origin+location.pathname+'?parent=1'+(sheetURL?'&sheet='+encodeURIComponent(sheetURL):'')}
@@ -1619,6 +1770,11 @@ function bindStudents(){
       if(cur){useCourse();loadP();checkBadges();celeQueue=[];nav={u:-1,t:0,s:0,sub:0};send({t:'sync',nav,S,P,sheet:sheetURL,list:STUDENTS,at:studentsAt,pn:parentWord});loadSheet()}
       toast(x.name+'：'+(COURSES[x.course]?COURSES[x.course].name:'還沒安排課程'));if(cur)reopen()};
     const use=row.querySelector('.stuuse');if(use)use.onclick=()=>{switchStudent(x.id);toast('切換到 '+x.name);reopen()};
+    const del=row.querySelector('.studel'),ask=row.querySelector('.studelask');
+    if(del)del.onclick=()=>{ask.hidden=false;del.hidden=true};
+    row.querySelector('.stuno').onclick=()=>{ask.hidden=true;if(del)del.hidden=false};
+    row.querySelector('.stuyes').onclick=()=>{if(cur||STUDENTS.length<=1)return;
+      STUDENTS=STUDENTS.filter(y=>y.id!==x.id);pushRoster();toast('已刪除 '+x.name);if(document.activeElement)document.activeElement.blur();reopen()};
   });
   document.getElementById('stuAdd').onclick=()=>{let n=1;while(STUDENTS.some(y=>y.id==='s'+n))n++;
     STUDENTS.push({id:'s'+n,name:'學生'+n,grade:3,course:''});pushRoster();if(document.activeElement)document.activeElement.blur();reopen();
