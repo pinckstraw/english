@@ -987,14 +987,15 @@ function award(k){
   catchAnim(k,arguments[1]);
   progChanged();return true;
 }
-function mergeProg(inc){
+// quiet：從試算表讀回來、孩子剛連上、切換學生時合併的舊紀錄，不跳徽章和抓怪動畫（別的裝置當時已經慶祝過了）
+function mergeProg(inc,quiet){
   if(!inc||typeof inc!=='object')return;
-  let changed=false;const newGot=[];
+  let changed=false;const newGot=[];const q0=celeQueue.length;
   ['got','topics','badges','days'].forEach(f=>{const src=inc[f];if(!src||typeof src!=='object')return;
-    for(const k in src){if(!P[f][k]){P[f][k]=src[k];changed=true;if(f==='badges')celeQueue.push(k);if(f==='got')newGot.push(k)}}});
-  if(inc.evo&&typeof inc.evo==='object')for(const k in inc.evo){const v=+inc.evo[k]||1;if(v>(P.evo[k]||1)){P.evo[k]=v;changed=true;if(booted&&status==='on')evoAnim(k,v)}}
-  if(booted&&status==='on'&&newGot.length&&newGot.length<=2)newGot.forEach(k=>catchAnim(k));
-  if(changed){checkBadges();store.set(progKey(),P);scheduleSave();updateCounters();showCele();if(nav.u<0)render()}
+    for(const k in src){if(!P[f][k]){P[f][k]=src[k];changed=true;if(f==='badges'&&!quiet)celeQueue.push(k);if(f==='got')newGot.push(k)}}});
+  if(inc.evo&&typeof inc.evo==='object')for(const k in inc.evo){const v=+inc.evo[k]||1;if(v>(P.evo[k]||1)){P.evo[k]=v;changed=true;if(booted&&status==='on'&&!quiet)evoAnim(k,v)}}
+  if(!quiet&&booted&&status==='on'&&newGot.length&&newGot.length<=2)newGot.forEach(k=>catchAnim(k));
+  if(changed){checkBadges();if(quiet)celeQueue.length=q0;store.set(progKey(),P);scheduleSave();updateCounters();showCele();if(nav.u<0)render()}
   return changed;
 }
 function showCele(){
@@ -1034,7 +1035,7 @@ async function saveSheet(){
   const key=progKey(),body=JSON.stringify(Object.assign(sheetMeta(),{state:P,summary:curCourse()?summary():null,events:ev}));
   try{
     const r=await fetch(sheetURL,{method:'POST',body});
-    const j=await r.json();if(j&&j.students)rosterFromSheet(j.students,j.studentsAt,j.parentWord);if(j)useRoomCode(j.roomCode);if(j&&j.state&&key===progKey())mergeProg(j.state);
+    const j=await r.json();if(j&&j.students)rosterFromSheet(j.students,j.studentsAt,j.parentWord);if(j)useRoomCode(j.roomCode);if(j&&j.state&&key===progKey())mergeProg(j.state,true);
     sheetState='ok';lastSaved=new Date();
   }catch(e){sheetState='err';pendingEv=ev.concat(pendingEv)}
   renderSheetState();
@@ -1057,7 +1058,7 @@ async function loadSheet(){
   try{const r=await fetch(sheetURL+(sheetURL.includes('?')?'&':'?')+'action=load&key='+encodeURIComponent(key.slice(5)));const j=await r.json();
     if(j&&j.ok){
       if(j.students&&rosterFromSheet(j.students,j.studentsAt,j.parentWord))return loadSheet();   // 換成別的學生/課本了：再讀一次他的紀錄
-      if(j.state&&key===progKey())mergeProg(j.state);
+      if(j.state&&key===progKey())mergeProg(j.state,true);
       useRoomCode(j.roomCode);
       if(!(+j.studentsAt>=studentsAt)&&studentsAt&&shouldSave())scheduleSave();   // 這台的名單比較新：存回試算表
       if(role==='kid'&&!store.get('sid',null)&&status!=='on')showWhoPop(kidPick);   // 新平板：問是誰，舊紀錄從試算表拿回來
@@ -1118,7 +1119,7 @@ function kidIdentify(){
 
 /* ===================== 連線（PeerJS，不用帳號） ===================== */
 const PREFIX='hlwow5-';
-let peer=null, conn=null, status='off', retryT=null, busyName='', busyTold={}, handedOff=false;
+let peer=null, conn=null, status='off', retryT=null, busyName='', busyTold={}, handedOff=false, takeoverAt=0, lastCodeCheck=0;   // 孩子連不到時，每 20 秒到試算表看一下教室代碼有沒有換
 function setStatus(s){const was=status;status=s;renderChip();if(role==='kid'&&nav.u===-1&&(was==='on')!==(s==='on'))render()}
 function send(m){if(conn&&conn.open){try{conn.send(m)}catch(e){}}}
 function wire(c){
@@ -1133,7 +1134,7 @@ function handOff(){
 }
 function takeOver(){
   if(typeof Peer==='undefined')return;
-  handedOff=false;toast('正在把教室換到這台…');
+  handedOff=false;takeoverAt=Date.now();toast('正在把教室換到這台…（約 5～10 秒）');
   let done=false;const fin=()=>{if(done)return;done=true;try{tmp.destroy()}catch(e){}setTimeout(startMom,1200)};
   const tmp=new Peer(undefined,{debug:0});
   tmp.on('open',()=>{const c=tmp.connect(PREFIX+code,{reliable:true});c.on('open',()=>{try{c.send({t:'takeover'})}catch(e){}setTimeout(fin,800)});setTimeout(fin,6000)});
@@ -1146,7 +1147,7 @@ function startMom(){
   if(peer)peer.destroy();
   peer=new Peer(PREFIX+code,{debug:0});
   if(status!=='taken')setStatus('wait');
-  peer.on('open',()=>{if(status==='taken'){setStatus('wait');toast('教室已經在這台開好了')}});
+  peer.on('open',()=>{takeoverAt=0;if(status==='taken'){setStatus('wait');toast('教室已經在這台開好了');if(nav.u===-1)render()}});
   peer.on('connection',c=>{
     // 先不換掉目前的連線：等這台說自己是誰，是媽媽正在陪的那個孩子才接進來
     const tell=m=>{try{c.send(m)}catch(e){}};
@@ -1165,7 +1166,7 @@ function startMom(){
   });
   peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
   peer.on('error',e=>{
-    if(e.type==='unavailable-id'){if(status!=='taken'&&!handedOff)toast('教室正在另一台裝置開著；要用這台上課，按首頁的「改用這台開教室」');const was=status;setStatus('taken');if(was!=='taken'&&nav.u===-1)render();setTimeout(()=>{if(role==='mom'&&!handedOff&&status==='taken')startMom()},5000)}
+    if(e.type==='unavailable-id'){if(takeoverAt&&Date.now()-takeoverAt>15000){takeoverAt=0;toast('另一台沒有讓出教室：請在那台重新整理網頁（或關掉 JJ英語），這台會自動接手')}if(status!=='taken'&&!handedOff&&!takeoverAt)toast('教室正在另一台裝置開著；要用這台上課，按首頁的「改用這台開教室」');const was=status;setStatus('taken');if(was!=='taken'&&nav.u===-1)render();setTimeout(()=>{if(role==='mom'&&!handedOff&&status==='taken')startMom()},5000)}
     else if(e.type==='network'||e.type==='server-error'||e.type==='socket-error'){setStatus('err');setTimeout(startMom,5000)}
   });
   render();
@@ -1178,7 +1179,7 @@ function startKid(c){
   peer=new Peer({debug:0});
   peer.on('open',()=>{const cc=peer.connect(PREFIX+c,{reliable:true});conn=cc;wire(cc);
     cc.on('open',()=>{send({t:'hello'})})});
-  peer.on('error',e=>{if(e.type==='peer-unavailable'){busyName='';setStatus('nomom');scheduleRetry();if(!store.get('sid',null)&&sheetURL)loadSheet()}else{setStatus('err');scheduleRetry()}});
+  peer.on('error',e=>{if(e.type==='peer-unavailable'){busyName='';setStatus('nomom');scheduleRetry();if(sheetURL&&(!store.get('sid',null)||Date.now()-lastCodeCheck>20000)){lastCodeCheck=Date.now();loadSheet()}}else{setStatus('err');scheduleRetry()}});
   peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
   render();
 }
@@ -1205,11 +1206,11 @@ function onMsg(m){
     case 'hello': if(role==='mom')send({t:'roster',list:STUDENTS,at:studentsAt,pn:parentWord});break;
     case 'roster': if(role==='kid'&&Array.isArray(m.list)&&m.list.length){adoptStudents(m.list,m.at||1);hostWord(m.pn);renderChip();refreshWhoPop();kidIdentify()}break;
     case 'iam': if(role==='mom'&&m.sid){if(!STUDENTS.some(x=>x.id===m.sid))break;
-        const changed=switchStudent(m.sid);mergeProg(m.P);setStatus('on');toast(kidName()+'已加入教室'+(changed?'，已切換到'+kidName()+'的紀錄':''));
+        const changed=switchStudent(m.sid);mergeProg(m.P,true);setStatus('on');toast(kidName()+'已加入教室'+(changed?'，已切換到'+kidName()+'的紀錄':''));
         send({t:'sync',nav,S,P,sheet:sheetURL,list:STUDENTS,at:studentsAt,pn:parentWord});render()}break;
     case 'sync': if(role==='kid'){busyName='';setStatus('on');showStartPop()}
       if(Array.isArray(m.list)&&m.list.length)adoptStudents(m.list,m.at||1);hostWord(m.pn);
-      nav=m.nav;S=Object.assign({stamped:{}},m.S);if(S.music)setTimeout(()=>showPlayer(S.music),300);if(typeof m.sheet==='string'&&m.sheet){sheetURL=m.sheet;store.set('sheet',sheetURL)}mergeProg(m.P);render();break;
+      nav=m.nav;S=Object.assign({stamped:{}},m.S);if(S.music)setTimeout(()=>showPlayer(S.music),300);if(typeof m.sheet==='string'&&m.sheet){sheetURL=m.sheet;store.set('sheet',sheetURL)}mergeProg(m.P,true);render();break;
     case 'nav': nav=m.nav;render();break;
     case 'prog': mergeProg(m.P);break;
     case 'music':
