@@ -2518,9 +2518,9 @@ function bindWhiteboard(){
 /* ===================== 自動更新 =====================
    網頁有新版本時，不用按重新整理，隨時都會自己換：
    - 平板從休眠/背景回來時，有新版就馬上換
-   - 開著的時候每 3 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
+   - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-15f';
+const APP_VER='2026-11-15g';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
@@ -2546,7 +2546,7 @@ async function doUpdate(){
   const u=new URL(location.href);u.searchParams.set('_v',newVer);location.replace(u.toString());   // 加版本號，避開瀏覽器舊的快取
 }
 setTimeout(checkVer,8000);
-setInterval(async()=>{if(!newVer)await checkVer()},180000);
+setInterval(async()=>{if(!newVer)await checkVer()},60000);
 setInterval(()=>{if(newVer&&safeToUpdate())doUpdate()},5000);
 document.addEventListener('visibilitychange',async()=>{if(document.hidden)return;await checkVer();if(newVer&&noPopup())doUpdate()});
 // 換好之後：網址上的 _v 拿掉，回到換之前的畫面
