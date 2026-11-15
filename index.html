@@ -2512,6 +2512,36 @@ function bindWhiteboard(){
   setupBoard('',k,4);
 }
 
+/* ===================== 自動更新 =====================
+   網頁有新版本時，不用按重新整理：
+   - 平板從休眠/背景回來時，有新版就馬上換
+   - 開著的時候每 3 分鐘看一次；等停在地圖、20 秒沒碰畫面、設定沒打開時才換，不會打斷寫字或上課 */
+const APP_VER='2026-11-15a';
+let newVer=null,lastTouch=Date.now();
+document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
+async function checkVer(){
+  if(!/^https?:/.test(location.protocol))return;
+  try{
+    const r=await fetch(location.pathname+'?_ck='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    const m=(await r.text()).match(/const APP_VER='([^']+)'/);
+    if(m&&m[1]!==APP_VER)newVer=m[1];
+  }catch(e){}
+}
+const noPopup=()=>!settingsOpen&&!document.querySelector('.overlay,.startpop,.kidpanel,.catch');
+function safeToUpdate(){return noPopup()&&(nav.u===-1||status!=='on')&&(document.hidden||Date.now()-lastTouch>20000)}   // 正在上課（已連線且不在地圖）就等下課
+function doUpdate(){
+  if(!newVer)return;
+  const tried=store.get('updTried',null);if(tried===newVer)return;   // 同一版只試一次，避免一直重整
+  store.set('updTried',newVer);
+  const u=new URL(location.href);u.searchParams.set('_v',newVer);location.replace(u.toString());   // 加版本號，避開瀏覽器舊的快取
+}
+setTimeout(checkVer,8000);
+setInterval(async()=>{if(!newVer)await checkVer();if(newVer&&safeToUpdate())doUpdate()},180000);
+setInterval(()=>{if(newVer&&safeToUpdate())doUpdate()},15000);
+document.addEventListener('visibilitychange',async()=>{if(document.hidden)return;await checkVer();if(newVer&&noPopup()&&(nav.u===-1||status!=='on'))doUpdate()});
+// 換好之後把網址上的 _v 拿掉
+if(new URLSearchParams(location.search).has('_v')){const u=new URL(location.href);u.searchParams.delete('_v');history.replaceState(null,'',u.pathname+(u.search||''))}
+
 /* ===================== 啟動 ===================== */
 checkBadges();celeQueue=[];   // 開啟時不重播舊徽章
 render();booted=true;
