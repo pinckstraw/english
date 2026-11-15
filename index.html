@@ -1388,7 +1388,7 @@ function summary(){
     return [U.en+' '+U.zh,T.title,'★'.repeat(r.rate)+'☆'.repeat(3-r.rate),r.got+' / '+r.all,P.topics[tid]||'']});
   const badges=BADGES.map(b=>[b.i+' '+b.n,b.d,badgeHas(b.id)]);
   const overview=[['學生',kidName()],['課程',(curCourse()||{}).name||'尚未安排'],['怪獸總數',starCount()],['進化的怪獸',Object.values(P.evo).filter(v=>v>=2).length],['異色怪獸',KAIJU.filter(k=>shinyOwned(k.id)).length],['圖鑑種類',Object.keys(dexCounts()).length+' / '+KAIJU.length],[''+PN()+'印章',stampCount()],['完成主題',Object.keys(P.topics).length+' / '+allTopics().length],
-    ['徽章',BADGES.filter(b=>badgeHas(b.id)).length+' / '+BADGES.length],['連續上課天數',streak()],['總上課天數',Object.keys(P.days).length],['最後更新',new Date().toLocaleString('zh-TW')]];
+    ['徽章',BADGES.filter(b=>badgeHas(b.id)).length+' / '+BADGES.length],['連續上課天數',streak()+' 天'],['總上課天數',Object.keys(P.days).length+' 天'],['最後更新',new Date().toLocaleString('zh-TW')]];
   return {topics,badges,overview};
 }
 function sheetMeta(){const x=curStu()||{},c=curCourse();return {key:progKey().slice(5),student:{id:x.id,name:x.name||''},course:{id:c?c.id:'',name:c?c.name:''},students:STUDENTS.map(y=>Object.assign({},y,{courseName:COURSES[y.course]?COURSES[y.course].name:''})),studentsAt,roomCode:role==='mom'?code:''}}
@@ -2525,7 +2525,7 @@ function bindWhiteboard(){
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-15k';
+const APP_VER='2026-11-15l';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
