@@ -333,7 +333,7 @@ body.night .badge small{color:var(--n-muted)}
 .tip.ghost,.teachbar.ghost{visibility:hidden}
 .hab{display:inline-flex;flex-direction:column;vertical-align:top}
 .unexplored{opacity:.4}
-.hab .ul{display:inline-block;min-width:3.6em;font-size:.78em;opacity:.75;margin-right:.35em;letter-spacing:.02em}
+.hab .ul{display:inline-block;min-width:3.9em;font-size:.78em;opacity:.75;margin-right:.35em;letter-spacing:.02em}
 .stampbtn.selfchk{background:#9fd3e8;color:var(--ink)!important}.stampbtn.selfchk.on{background:var(--card)}
 #titleLock{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;position:relative;padding:4px 6px;border-radius:10px;background:linear-gradient(90deg,#ffb39966 0 0) no-repeat 0 0/0% 100%}
 #titleLock.holding{background-size:100% 100%;transition:background-size var(--hold,3s) linear}
@@ -399,6 +399,7 @@ body.night .settings input,body.night .settings select{background:var(--card);co
 .mon{align-content:start}
 .mon .rar{line-height:1.6}
 .mon .weakrow{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
+.mon .wlist{flex-basis:100%;display:flex;flex-wrap:wrap;gap:3px}
 .mon .weak.unk{border-style:dashed;border-color:#3a4a66;color:#56657f}
 .mon .wcount{font:400 12px var(--n-head);color:var(--n-yellow);margin-right:2px}
 .mon .weak{font-size:12px;font-weight:700;padding:1px 7px;border-radius:999px;border:1.5px solid var(--n-cyan);background:#0a0f1c;color:var(--n-text);text-align:left;line-height:1.4}
@@ -2045,8 +2046,8 @@ function keyText(k){const p=k.split('|');if(p.length<4)return null;const cut=p[1
 function weaknessOf(id){return [...new Set(Object.keys(P.got).sort((a,b)=>(P.got[b]||'').localeCompare(P.got[a]||'')).filter(k=>speciesOf(k).id===id).map(keyText).filter(Boolean))]}
 // 出沒地點＝他在作戰地圖哪一區抓到這隻怪獸
 const sectorName=uid=>REGION[uid]?REGION[uid].name:'';
-// 出沒地點前面標第幾課（Unit 1→U1，Starter、節慶照課本寫）
-const unitTag=uid=>{const U=UNITS.find(u=>u.id===uid);if(!U)return '';const m=/^Unit (\d+)/.exec(U.en);return `<span class="ul">${m?'U'+m[1]:esc(U.en)}</span>`};
+// 出沒地點前面標第幾課（照課本寫：Starter、Unit 1…）
+const unitTag=uid=>{const U=UNITS.find(u=>u.id===uid);return U?`<span class="ul">${esc(U.en)}</span>`:''};
 // 每隻怪獸出沒的區域數不一樣（2～5 個），補空白行到同樣行數，圖鑑卡片長度才一致
 let habMaxCache={};
 function habMax(){const c=(curCourse()||{}).id||'';if(habMaxCache[c])return habMaxCache[c];
@@ -2069,8 +2070,9 @@ function weakHTML(k){
   // 每隻怪獸固定 5～6 個弱點單字：學會的可以點來聽，還沒學會的顯示 ？？？
   const all=speciesTexts(k.id),got=new Set(learnedTexts(k.id));
   const known=all.filter(t=>got.has(t)),unknown=all.length-known.length;
-  return `<span class="wcount">${known.length}/${all.length}</span>`+known.map(x=>`<button class="weak en" data-say="${esc(x)}">🔊 ${esc(x)}</button>`).join('')
-    +'<span class="weak unk">？？？</span>'.repeat(unknown);
+  // 單字一律從下一行開始排，每張卡片都一樣
+  return `<span class="wcount">${known.length}/${all.length}</span><span class="wlist">`+known.map(x=>`<button class="weak en" data-say="${esc(x)}">🔊 ${esc(x)}</button>`).join('')
+    +'<span class="weak unk">？？？</span>'.repeat(unknown)+'</span>';
 }
 function bindDex(){
   document.querySelectorAll('.more[data-more]').forEach(b=>b.onclick=()=>{const id=b.dataset.more;weakOpen.has(id)?weakOpen.delete(id):weakOpen.add(id);render()});
@@ -2523,7 +2525,7 @@ function bindWhiteboard(){
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-15i';
+const APP_VER='2026-11-15k';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
