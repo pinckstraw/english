@@ -1884,7 +1884,7 @@ function settingsHTML(){
     <h3>清除這台裝置的資料</h3>
     <p class="hint">把這台裝置上存的怪獸、單字、學生名單、身分和設定全部清掉，變回第一次打開的樣子（例如測試用過的手機）。試算表裡的紀錄不會被刪，其他平板也不受影響。</p>
     <div class="row" id="wipeRow"><button class="big ghost" id="wipeAsk">清除這台裝置的資料</button></div>
-    <div class="row" style="justify-content:flex-end"><button class="big ghost" id="setClose">關閉設定</button></div></div>`;
+    <div class="row" style="justify-content:space-between;align-items:center"><span class="hint">網頁版本 ${APP_VER}（有新版會自己更新）</span><button class="big ghost" id="setClose">關閉設定</button></div></div>`;
 }
 // 長按標題 3 秒（孩子平板）：掛在整個頁面上，背景重畫換掉標題也不會中斷；手指稍微晃動不算放開；按住時標題慢慢填滿
 (()=>{
@@ -2520,7 +2520,7 @@ function bindWhiteboard(){
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 3 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-15d';
+const APP_VER='2026-11-15e';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
