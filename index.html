@@ -572,7 +572,7 @@ body.night .settings input,body.night .settings select{background:var(--card);co
 })();
 </script>
 <script>
-/* ===================== 課程內容（翰林 Here We Go 5 上） ===================== */
+/* ===================== 課程內容（翰林 Here We Go 5（五上）） ===================== */
 const W = (en, zh, pic) => ({en, zh, pic});
 const HANLIN5A = [
  {id:'st', en:'Starter', zh:'開學預備', topics:[
@@ -823,11 +823,11 @@ HANLIN3A.forEach(u=>u.topics.forEach(t=>t.steps=STEP_DEFS[t.kind](t)));
 
 /* ===================== 課程庫 =====================
    一本課本＝一筆。之後要加別的出版社或別冊，就在這裡多加一本：
-   COURSES['kang-3a']={id:'kang-3a',name:'康軒 Follow Me 3 上',short:'三上英文',grade:3,units:[...]};
+   COURSES['kang-3a']={id:'kang-3a',name:'康軒 Follow Me 1（三上）',term:'三上',short:'三上英文',grade:3,units:[...]};
    每個學生在「⚙️ 設定」選自己上哪一本，紀錄會依「學生＋課本」分開存。 */
 const COURSES={
-  'hanlin-5a':{id:'hanlin-5a',name:'翰林 Here We Go 5 上',short:'五上英文',grade:5,units:HANLIN5A},
-  'hanlin-3a':{id:'hanlin-3a',name:'翰林 Here We Go 1（三上）',short:'三上英文',grade:3,units:HANLIN3A,
+  'hanlin-5a':{id:'hanlin-5a',name:'翰林 Here We Go 5（五上）',term:'五上',short:'五上英文',grade:5,units:HANLIN5A},
+  'hanlin-3a':{id:'hanlin-3a',name:'翰林 Here We Go 1（三上）',term:'三上',short:'三上英文',grade:3,units:HANLIN3A,
     unitBadges:{st:['🔤','字母起步','抓到 Starter 全部的怪獸'],u1:['👋','自我介紹王','抓到 Unit 1 全部的怪獸'],u2:['🎂','年齡小達人','抓到 Unit 2 全部的怪獸'],
       u3:['✏️','文具小管家','抓到 Unit 3 全部的怪獸'],u4:['🎨','色彩魔法師','抓到 Unit 4 全部的怪獸'],xm:['🎃','萬聖節小鬼','抓到萬聖節全部的怪獸']},
     regions:{st:'字母營地',u1:'名字森林',u2:'生日樹屋',u3:'文具小鎮',u4:'彩虹草原',xm:'南瓜城堡'}},
@@ -1822,7 +1822,7 @@ function mapSVG(){
   out+=`<g><rect x="${XR-300}" y="${y+40}" width="460" height="110" rx="12" fill="#0a0f1c" stroke="#ffd400" stroke-width="4"/>
     <rect x="${XR-300}" y="${y+40}" width="460" height="16" fill="url(#haz)"/>
     <text x="${XR-70}" y="${y+96}" text-anchor="middle" font-family="${HD}" font-size="30" fill="#ffd400">${allDone?'MISSION COMPLETE':'FINAL MISSION'}</text>
-    <text x="${XR-70}" y="${y+132}" text-anchor="middle" font-family="${ZH}" font-weight="900" font-size="24" fill="#fff">${allDone?'任務完成！五上全破關':'最終任務：全部關卡破關'}</text>
+    <text x="${XR-70}" y="${y+132}" text-anchor="middle" font-family="${ZH}" font-weight="900" font-size="24" fill="#fff">${allDone?'任務完成！'+esc(((curCourse()||{}).term)||'')+'全破關':'最終任務：全部關卡破關'}</text>
     </g>`;
   const H=y+210;const d=smoothPath(pts);
   const road=`<path d="${d}" fill="none" stroke="#000" stroke-width="54" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#2a2f3a" stroke-width="44" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#ffd400" stroke-width="4" stroke-dasharray="18 16"/>`;
@@ -1854,8 +1854,8 @@ function studentsHTML(){
     <p class="hint">每個孩子的怪獸、學會的單字、進化完全分開記錄。孩子用自己的平板打開連結時，第一次會問「你是誰？」。要陪哪個孩子，在首頁的「現在要陪」選。</p>
     <div class="stulist">${STUDENTS.map(x=>{const cur=x.id===(curStu()||{}).id;return `<div class="sturow ${cur?'cur':''}" data-sid="${esc(x.id)}">
       <input class="stuname" value="${esc(x.name)}" maxlength="8" aria-label="名字">
-      <select class="stugrade" aria-label="年級">${GRADES.map(g=>`<option value="${g}" ${+x.grade===g?'selected':''}>${g} 年級</option>`).join('')}</select>
-      <select class="stucourse" aria-label="課本"><option value="">還沒安排課程</option>${Object.values(COURSES).map(c=>`<option value="${c.id}" ${x.course===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+      <select class="stugrade" aria-label="年級">${GRADES.map(g=>`<option value="${g}" ${+x.grade===g?'selected':''}>${'一二三四五六'[g-1]||g}年級</option>`).join('')}</select>
+      <select class="stucourse" aria-label="課本"><option value="">還沒安排課程</option>${Object.values(COURSES).sort((p,q)=>p.grade-q.grade).map(c=>`<option value="${c.id}" ${x.course===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
       ${cur?'<span class="stucur">目前</span>':`<button class="big ghost stuuse" ${locked?'disabled':''}>切換</button>`}
       ${cur||STUDENTS.length<=1?'':'<button class="big ghost studel" title="刪除">刪除</button>'}
       <div class="studelask" hidden><span class="hint wipewarn">確定刪除「${esc(x.name)}」？他的平板下次連線會重新問「你是誰？」。試算表裡的紀錄會保留。</span><button class="big wipeyes stuyes">確定刪除</button><button class="big ghost stuno">取消</button></div></div>`}).join('')}</div>
@@ -2520,7 +2520,7 @@ function bindWhiteboard(){
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 3 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-15c';
+const APP_VER='2026-11-15d';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
