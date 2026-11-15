@@ -513,7 +513,7 @@ body.night .settings input,body.night .settings select{background:var(--card);co
     constructor(peer,remote,cid,hostId){this.peer=peer;this.remote=remote;this.cid=cid;this.hostId=hostId;this.h={};this.open=false;this.dead=false;this.lastSeen=Date.now()}
     on(e,f){(this.h[e]=this.h[e]||[]).push(f);return this}
     emit(e,v){(this.h[e]||[]).forEach(f=>{try{f(v)}catch(err){console.error(err)}})}
-    _raw(o){o.cid=this.cid;return sendTo(this.remote,this.hostId,o)}
+    _raw(o){o.cid=this.cid;o.from=this.peer.id;return sendTo(this.remote,this.hostId,o)}
     _open(){if(this.open||this.dead)return;this.open=true;this.lastSeen=Date.now();
       this.hb=setInterval(()=>{if(Date.now()-this.lastSeen>20000){this._closed();return}this._raw({k:'ping'})},5000);
       this.emit('open')}
@@ -550,7 +550,10 @@ body.night .settings input,body.night .settings select{background:var(--card);co
         const c=new RConn(this,o.from,o.cid,this.id);this.conns.set(o.cid,c);this.emit('connection',c);
         c._open();c._raw({k:'accept'});return;
       }
-      const c=this.conns.get(o.cid);if(!c)return;c.lastSeen=Date.now();
+      const c=this.conns.get(o.cid);
+      // 教室那台重新整理過（不認得這條連線）：馬上叫對方斷開重連，不用等 20 秒
+      if(!c){if(this.owner&&this.named&&o.from&&o.k!=='close')sendTo(o.from,this.id,{k:'close',cid:o.cid});return}
+      c.lastSeen=Date.now();
       if(o.k==='accept')c._open();
       else if(o.k==='data')c.emit('data',o.v);
       else if(o.k==='ping')c._raw({k:'pong'});
@@ -1420,7 +1423,7 @@ async function loadSheet(){
       if(j.state&&key===progKey())mergeProg(j.state,true);
       useRoomCode(j.roomCode);
       if(!(+j.studentsAt>=studentsAt)&&studentsAt&&shouldSave())scheduleSave();   // 這台的名單比較新：存回試算表
-      if(role==='kid'&&!store.get('sid',null)&&status!=='on')showWhoPop(kidPick);   // 新平板：問是誰，舊紀錄從試算表拿回來
+      if(role==='kid'&&status!=='on'&&!(store.get('sid',null)&&STUDENTS.some(x=>x.id===store.get('sid',null))))showWhoPop(kidPick);   // 新平板、或這台的名字被刪掉了：問是誰，舊紀錄從試算表拿回來
       sheetState='ok';renderSheetState();return true}}catch(e){}
   sheetState='err';renderSheetState();return false;
 }
@@ -2513,12 +2516,14 @@ function bindWhiteboard(){
 }
 
 /* ===================== 自動更新 =====================
-   網頁有新版本時，不用按重新整理：
+   網頁有新版本時，不用按重新整理，隨時都會自己換：
    - 平板從休眠/背景回來時，有新版就馬上換
-   - 開著的時候每 3 分鐘看一次；等停在地圖、20 秒沒碰畫面、設定沒打開時才換，不會打斷寫字或上課 */
-const APP_VER='2026-11-15a';
+   - 開著的時候每 3 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
+   - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
+const APP_VER='2026-11-15c';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
+document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
 async function checkVer(){
   if(!/^https?:/.test(location.protocol))return;
   try{
@@ -2527,24 +2532,36 @@ async function checkVer(){
     if(m&&m[1]!==APP_VER)newVer=m[1];
   }catch(e){}
 }
-const noPopup=()=>!settingsOpen&&!document.querySelector('.overlay,.startpop,.kidpanel,.catch');
-function safeToUpdate(){return noPopup()&&(nav.u===-1||status!=='on')&&(document.hidden||Date.now()-lastTouch>20000)}   // 正在上課（已連線且不在地圖）就等下課
-function doUpdate(){
-  if(!newVer)return;
-  const tried=store.get('updTried',null);if(tried===newVer)return;   // 同一版只試一次，避免一直重整
+// 抓怪獸動畫、你是誰、家長稱呼這類跳出的視窗開著，或正在設定裡打字時先等一下
+const noPopup=()=>!typingInSettings()&&!document.querySelector('.overlay,.startpop,.kidpanel,.catch');
+function safeToUpdate(){return noPopup()&&(document.hidden||Date.now()-lastTouch>10000)}
+let updating=false;
+async function doUpdate(){
+  if(!newVer||updating)return;
+  if(store.get('updTried',null)===newVer)return;   // 同一版只試一次，避免一直重整
+  updating=true;
+  try{if(sheetURL&&shouldSave()&&(saveT||pendingEv.length))await saveSheet()}catch(e){}   // 還沒存到試算表的先存
+  try{sessionStorage.setItem('hl5:resume',JSON.stringify({at:Date.now(),sid,nav,S,y:window.scrollY,rev:[...revealed],set:settingsOpen}))}catch(e){}
   store.set('updTried',newVer);
   const u=new URL(location.href);u.searchParams.set('_v',newVer);location.replace(u.toString());   // 加版本號，避開瀏覽器舊的快取
 }
 setTimeout(checkVer,8000);
-setInterval(async()=>{if(!newVer)await checkVer();if(newVer&&safeToUpdate())doUpdate()},180000);
-setInterval(()=>{if(newVer&&safeToUpdate())doUpdate()},15000);
-document.addEventListener('visibilitychange',async()=>{if(document.hidden)return;await checkVer();if(newVer&&noPopup()&&(nav.u===-1||status!=='on'))doUpdate()});
-// 換好之後把網址上的 _v 拿掉
+setInterval(async()=>{if(!newVer)await checkVer()},180000);
+setInterval(()=>{if(newVer&&safeToUpdate())doUpdate()},5000);
+document.addEventListener('visibilitychange',async()=>{if(document.hidden)return;await checkVer();if(newVer&&noPopup())doUpdate()});
+// 換好之後：網址上的 _v 拿掉，回到換之前的畫面
 if(new URLSearchParams(location.search).has('_v')){const u=new URL(location.href);u.searchParams.delete('_v');history.replaceState(null,'',u.pathname+(u.search||''))}
+let resumeY=null;
+try{const r=JSON.parse(sessionStorage.getItem('hl5:resume')||'null');sessionStorage.removeItem('hl5:resume');
+  if(r&&Date.now()-r.at<5*60000&&r.sid===sid&&r.nav){
+    const okNav=r.nav.u<0||(UNITS[r.nav.u]&&UNITS[r.nav.u].topics[r.nav.t]&&UNITS[r.nav.u].topics[r.nav.t].steps[r.nav.s]);   // 新版課程改過、那一步不見了，就回地圖
+    if(okNav){nav=r.nav;S=Object.assign({},S,r.S||{});(r.rev||[]).forEach(k=>revealed.add(k));settingsOpen=!!r.set&&nav.u===-1;resumeY=r.y||0}
+  }}catch(e){}
 
 /* ===================== 啟動 ===================== */
 checkBadges();celeQueue=[];   // 開啟時不重播舊徽章
 render();booted=true;
+if(resumeY!=null){if(S.music)setTimeout(()=>showPlayer(S.music),300);setTimeout(()=>window.scrollTo(0,resumeY),50)}
 {const su=new URLSearchParams(location.search).get('sheet');if(su&&/^https:\/\/script\.google(usercontent)?\.com\//.test(su)&&su!==sheetURL){sheetURL=su;store.set('sheet',su)}}
 loadSheet();
 if(role==='mom'&&code&&!new URLSearchParams(location.search).get('room'))startMom();
