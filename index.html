@@ -825,8 +825,8 @@ HANLIN3A.forEach(u=>u.topics.forEach(t=>t.steps=STEP_DEFS[t.kind](t)));
 const COURSES={
   'hanlin-5a':{id:'hanlin-5a',name:'翰林 Here We Go 5 上',short:'五上英文',grade:5,units:HANLIN5A},
   'hanlin-3a':{id:'hanlin-3a',name:'翰林 Here We Go 1（三上）',short:'三上英文',grade:3,units:HANLIN3A,
-    unitBadges:{st:['🔤','字母起步','完成 Starter 全部主題'],u1:['👋','自我介紹王','完成 Unit 1 全部主題'],u2:['🎂','年齡小達人','完成 Unit 2 全部主題'],
-      u3:['✏️','文具小管家','完成 Unit 3 全部主題'],u4:['🎨','色彩魔法師','完成 Unit 4 全部主題'],xm:['🎃','萬聖節小鬼','完成萬聖節主題']},
+    unitBadges:{st:['🔤','字母起步','抓到 Starter 全部的怪獸'],u1:['👋','自我介紹王','抓到 Unit 1 全部的怪獸'],u2:['🎂','年齡小達人','抓到 Unit 2 全部的怪獸'],
+      u3:['✏️','文具小管家','抓到 Unit 3 全部的怪獸'],u4:['🎨','色彩魔法師','抓到 Unit 4 全部的怪獸'],xm:['🎃','萬聖節小鬼','抓到萬聖節全部的怪獸']},
     regions:{st:'字母營地',u1:'名字森林',u2:'生日樹屋',u3:'文具小鎮',u4:'彩虹草原',xm:'南瓜城堡'}},
 };
 let UNITS=[];
@@ -1276,20 +1276,23 @@ function topicStars(u,t){
   return {got,all,rate:r>=.9?3:r>=.6?2:(r>0||P.topics[tid])?1:0};
 }
 const allTopics=()=>UNITS.flatMap((u,ui)=>u.topics.map((t,ti)=>[ui,ti]));
-// 關主現身條件：這一區每一關都走完，而且單字課的字全部學會（答對過一次）
+// 關主現身條件：這一區每一關都走完，而且這一區的怪獸（每一題）全部抓到
 function unitMissing(id){const u=UNITS.find(x=>x.id===id);if(!u)return {topics:1,words:1};
   const topics=u.topics.filter(t=>!P.topics[u.id+'-'+t.id]).length;
   const words=u.topics.filter(t=>t.kind==='vocab').reduce((n,t)=>n+t.words.filter(w=>!isMastered(u.id+'-'+t.id,w.en,true)).length,0);
-  return {topics,words}}
-const unitDone=id=>{const m=unitMissing(id);return m.topics===0&&m.words===0};
+  // 這一區還沒抓到的怪獸（每一題就是一隻，寫字題要家長蓋章）
+  const mons=allKeys().filter(k=>{const t=k.split('|')[1]||'';return t.slice(0,t.indexOf('-'))===id&&!P.got[k]}).length;
+  return {topics,words,mons}}
+// 關主：這一區的怪獸全部抓到才會現身（要回去重複練習、把每一題都答對）
+const unitDone=id=>{const m=unitMissing(id);return m.topics===0&&m.mons===0};
 const ALL_BADGES=[
   {id:'first',i:'🎒',n:'第一次上課',d:'完成第一個主題',ok:()=>Object.keys(P.topics).length>=1},
-  {id:'st',i:'🔢',n:'數字小高手',d:'完成 Starter 全部主題',ok:()=>unitDone('st')},
-  {id:'u1',i:'📅',n:'星期小達人',d:'完成 Unit 1 全部主題',ok:()=>unitDone('u1')},
-  {id:'u2',i:'📚',n:'課表小管家',d:'完成 Unit 2 全部主題',ok:()=>unitDone('u2')},
-  {id:'u3',i:'🗺️',n:'社區小嚮導',d:'完成 Unit 3 全部主題',ok:()=>unitDone('u3')},
-  {id:'u4',i:'🦁',n:'動物園長',d:'完成 Unit 4 全部主題',ok:()=>unitDone('u4')},
-  {id:'xm',i:'🎄',n:'耶誕小精靈',d:'完成耶誕節主題',ok:()=>unitDone('xm')},
+  {id:'st',i:'🔢',n:'數字小高手',d:'抓到 Starter 全部的怪獸',ok:()=>unitDone('st')},
+  {id:'u1',i:'📅',n:'星期小達人',d:'抓到 Unit 1 全部的怪獸',ok:()=>unitDone('u1')},
+  {id:'u2',i:'📚',n:'課表小管家',d:'抓到 Unit 2 全部的怪獸',ok:()=>unitDone('u2')},
+  {id:'u3',i:'🗺️',n:'社區小嚮導',d:'抓到 Unit 3 全部的怪獸',ok:()=>unitDone('u3')},
+  {id:'u4',i:'🦁',n:'動物園長',d:'抓到 Unit 4 全部的怪獸',ok:()=>unitDone('u4')},
+  {id:'xm',i:'🎄',n:'耶誕小精靈',d:'抓到耶誕節全部的怪獸',ok:()=>unitDone('xm')},
   {id:'phon',i:'🔤',n:'發音小達人',d:'完成全部發音主題',ok:()=>UNITS.every(u=>u.topics.filter(t=>t.kind==='phonics').every(t=>P.topics[u.id+'-'+t.id]))},
   {id:'perfect',i:'💯',n:'全部答對',d:'一次測驗全部答對',ok:()=>false},
   {id:'wed',course:'hanlin-5a',i:'✍️',n:'Wednesday 寫對了',d:'寫 Wednesday 拿到'+PN()+'的印章',ok:()=>false},
@@ -1321,8 +1324,14 @@ function applyCourseExtras(){
 applyCourseExtras();
 
 let celeQueue=[];
-function grantBadge(id){if(P.badges[id])return false;P.badges[id]=today();const b=BADGES.find(x=>x.id===id);logEv('獲得徽章：'+b.n);celeQueue.push(id);return true}
-function checkBadges(){if(!UNITS.length)return;BADGES.forEach(b=>{if(!P.badges[b.id]&&b.ok())grantBadge(b.id)})}
+// 關主（每一區的徽章）不看以前存的紀錄，每次都重新檢查「這一區怪獸是不是全抓到」：
+// 規則改過之後，舊規則拿到、但怪獸還沒抓齊的關主會退回去，等抓齊了再重新現身。
+const isBossBadge=id=>Object.prototype.hasOwnProperty.call(BOSSES,id);
+function badgeHas(id){if(!isBossBadge(id))return P.badges[id]||'';return unitDone(id)?(P.badges['b2_'+id]||today()):''}
+function grantBadge(id){
+  if(isBossBadge(id)){if(P.badges['b2_'+id])return false;P.badges['b2_'+id]=today()}
+  else{if(P.badges[id])return false;P.badges[id]=today()}const b=BADGES.find(x=>x.id===id);logEv('獲得徽章：'+b.n);celeQueue.push(id);return true}
+function checkBadges(){if(!UNITS.length)return;BADGES.forEach(b=>{const has=isBossBadge(b.id)?P.badges['b2_'+b.id]:P.badges[b.id];if(!has&&b.ok())grantBadge(b.id)})}
 function progChanged(){
   checkBadges();
   store.set(progKey(),P);
@@ -1372,9 +1381,9 @@ function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(saveSheet,2500)}
 function summary(){
   const topics=allTopics().map(([u,t])=>{const U=UNITS[u],T=U.topics[t],r=topicStars(u,t),tid=tidOf(u,t);
     return [U.en+' '+U.zh,T.title,'★'.repeat(r.rate)+'☆'.repeat(3-r.rate),r.got+' / '+r.all,P.topics[tid]||'']});
-  const badges=BADGES.map(b=>[b.i+' '+b.n,b.d,P.badges[b.id]||'']);
+  const badges=BADGES.map(b=>[b.i+' '+b.n,b.d,badgeHas(b.id)]);
   const overview=[['學生',kidName()],['課程',(curCourse()||{}).name||'尚未安排'],['怪獸總數',starCount()],['進化的怪獸',Object.values(P.evo).filter(v=>v>=2).length],['異色怪獸',KAIJU.filter(k=>shinyOwned(k.id)).length],['圖鑑種類',Object.keys(dexCounts()).length+' / '+KAIJU.length],[''+PN()+'印章',stampCount()],['完成主題',Object.keys(P.topics).length+' / '+allTopics().length],
-    ['徽章',Object.keys(P.badges).length+' / '+BADGES.length],['連續上課天數',streak()],['總上課天數',Object.keys(P.days).length],['最後更新',new Date().toLocaleString('zh-TW')]];
+    ['徽章',BADGES.filter(b=>badgeHas(b.id)).length+' / '+BADGES.length],['連續上課天數',streak()],['總上課天數',Object.keys(P.days).length],['最後更新',new Date().toLocaleString('zh-TW')]];
   return {topics,badges,overview};
 }
 function sheetMeta(){const x=curStu()||{},c=curCourse();return {key:progKey().slice(5),student:{id:x.id,name:x.name||''},course:{id:c?c.id:'',name:c?c.name:''},students:STUDENTS.map(y=>Object.assign({},y,{courseName:COURSES[y.course]?COURSES[y.course].name:''})),studentsAt,roomCode:role==='mom'?code:''}}
@@ -1798,11 +1807,11 @@ function mapSVG(){
       </g>`;
       yy+=gaps[ti];
     });
-    const boss=BOSSES[u.id],got=!!P.badges[u.id],bx=RT.boss;bendNext=RT.bend[u.topics.length];addPt(bx,yy-20);
+    const boss=BOSSES[u.id],got=!!badgeHas(u.id),bx=RT.boss;bendNext=RT.bend[u.topics.length];addPt(bx,yy-20);
     out+=`<g>${got?`<path d="M${bx-30} ${yy+70} L${bx-140} ${yy-130} L${bx+140} ${yy-130} L${bx+30} ${yy+70} Z" fill="url(#beam)" opacity=".6"/>`:''}
       <svg x="${bx-90}" y="${yy-120}" width="180" height="180" viewBox="0 0 100 100">${kaijuSVG(boss,{size:100,locked:!got})}</svg>
       <rect x="${bx-170}" y="${yy+58}" width="340" height="50" rx="8" fill="${got?'#ffd400':'#1a0d12'}" stroke="${got?'#000':'#ff3b3b'}" stroke-width="3"/>
-      <text x="${bx}" y="${yy+91}" text-anchor="middle" font-family="${ZH}" font-weight="900" font-size="23" fill="${got?'#0a0f1c':'#ff6b6b'}">${got?'已收服 關主 '+esc(boss.n):(()=>{const m=unitMissing(u.id);return m.topics===0&&m.words>0?'⚠ 還差 '+m.words+' 個單字沒學會':'⚠ 偵測到不明巨大生物'})()}</text></g>`;
+      <text x="${bx}" y="${yy+91}" text-anchor="middle" font-family="${ZH}" font-weight="900" font-size="23" fill="${got?'#0a0f1c':'#ff6b6b'}">${got?'已收服 關主 '+esc(boss.n):(()=>{const m=unitMissing(u.id);return m.mons>0&&m.topics===0?'⚠ 還差 '+m.mons+' 隻怪獸沒抓到':'⚠ 偵測到不明巨大生物'})()}</text></g>`;
     y=top+h+30;
   });
   addPt(XR,y+70);
@@ -1998,7 +2007,7 @@ function bindStudents(){
 }
 let dexTab='dex';const shinyView=new Set(),weakOpen=new Set();
 function badgesHTML(){
-  const c=dexCounts(),kinds=Object.keys(c).length,bossGot=Object.keys(BOSSES).filter(id=>P.badges[id]).length;
+  const c=dexCounts(),kinds=Object.keys(c).length,bossGot=Object.keys(BOSSES).filter(id=>badgeHas(id)).length;
   const mon=(k,i,n,locked)=>{
     const boss=k.r===4,lv=boss?1:evoLevel(k.id),can=!boss&&!locked&&evoAllowedFor(k.id)>lv,learned=boss?0:learnedTexts(k.id).length,total=boss?0:speciesTexts(k.id).length,sh=!boss&&!locked&&shinyOwned(k.id),view=sh&&shinyView.has(k.id);
     const evoUI=boss||locked?'':can?`<button class="evobtn" data-evo="${k.id}">⚡ 可以進化！</button>`
@@ -2007,8 +2016,8 @@ function badgesHTML(){
     ${!boss&&!locked?`<span class="lvtag">${lvText(lv)}</span>`:''}${sh?`<button class="shinyt ${view?'on':''}" data-shiny="${k.id}">${view?'看原色':'✨ 看異色'}</button>`:''}
     ${kaijuSVG(k,{size:110,locked,lv,shiny:view})}${locked?'<span class="stampc">CLASSIFIED</span>':''}<b>${locked?'機密資料':esc(boss?k.n:evoName(k,lv))}</b><span class="rar">${RARITY[k.r]}</span>${evoUI}
     <div class="facts"><span><i>威脅等級　</i>${THREAT[k.r]}</span><span><i>出沒地點　</i>${locked?habPad(['？？？']):habitatHTML(k)}</span><span class="weakrow"><i>弱點　　　</i>${locked?'？？？':weakHTML(k)}</span></div>
-    <small>${locked?(k.r===4?'這一區關卡全部走完、單字全部學會就會現身':'繼續答對題目就有機會遇到'):'老家：'+esc(k.h)+'。'+esc(k.d)}</small></div>`};
-  const got=BADGES.filter(b=>P.badges[b.id]).length;
+    <small>${locked?(k.r===4?'這一區的怪獸全部抓到就會現身':'繼續答對題目就有機會遇到'):'老家：'+esc(k.h)+'。'+esc(k.d)}</small></div>`};
+  const got=BADGES.filter(b=>badgeHas(b.id)).length;
   return `<div class="top"><button class="iconbtn" id="home">← 作戰地圖</button><div class="crumb"><b>MONSTER FILES</b></div>${kjChip()}<span class="chip" id="chip"></span></div>
   <div class="filehead"><h1>怪獸研究所</h1><span>已收服 ${kinds} / ${KAIJU.length} 種，總共抓到 ${starCount()} 隻</span></div>
   <div class="tabs"><button id="tabDex" class="${dexTab==='dex'?'cur':''}">📁 怪獸檔案</button><button id="tabBadge" class="${dexTab==='badge'?'cur':''}">🏅 勳章 ${got}/${BADGES.length}</button></div>
@@ -2016,10 +2025,10 @@ function badgesHTML(){
   <p class="hint">答對題目、排對句子、${PN()}蓋章，都會抓到一隻怪獸。稀有和傳說的怪獸很難遇到！</p>
   <div class="dexsec"><b>野生怪獸</b>${kinds} / ${KAIJU.length}</div>
   <div class="dex">${KAIJU.map((k,i)=>mon(k,i,c[k.id]||0,!c[k.id])).join('')}</div>
-  <div class="dexsec"><b>關主怪獸</b>${bossGot} / ${Object.keys(BOSSES).length}，每一區關卡走完、單字全部學會就會現身一隻</div>
-  <div class="dex">${Object.entries(BOSSES).map(([id,k],i)=>mon(k,KAIJU.length+i,0,!P.badges[id])).join('')}</div>`
+  <div class="dexsec"><b>關主怪獸</b>${bossGot} / ${Object.keys(BOSSES).length}，每一區的怪獸全部抓到，那一區的關主就會現身</div>
+  <div class="dex">${Object.entries(BOSSES).map(([id,k],i)=>mon(k,KAIJU.length+i,0,!badgeHas(id))).join('')}</div>`
   :`<p class="hint">灰色的還沒拿到，看看條件，下一個就是你的。</p>
-  <div class="badges">${BADGES.map(b=>`<div class="badge ${P.badges[b.id]?'got':'locked'}"><div class="bi">${b.i}</div><div><b>${esc(b.n)}</b><small>${esc(b.d)}</small>${P.badges[b.id]?`<small>${esc(P.badges[b.id])} 拿到</small>`:''}</div></div>`).join('')}</div>`}
+  <div class="badges">${BADGES.map(b=>`<div class="badge ${badgeHas(b.id)?'got':'locked'}"><div class="bi">${b.i}</div><div><b>${esc(b.n)}</b><small>${esc(b.d)}</small>${badgeHas(b.id)?`<small>${esc(badgeHas(b.id))} 拿到</small>`:''}</div></div>`).join('')}</div>`}
   <div style="height:40px"></div>`;
 }
 // 弱點＝他用哪個字/句子抓到這隻怪獸（最近抓到的排前面）
