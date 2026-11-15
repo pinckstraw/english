@@ -333,6 +333,7 @@ body.night .badge small{color:var(--n-muted)}
 .tip.ghost,.teachbar.ghost{visibility:hidden}
 .hab{display:inline-flex;flex-direction:column;vertical-align:top}
 .unexplored{opacity:.4}
+.hab .ul{display:inline-block;min-width:3.6em;font-size:.78em;opacity:.75;margin-right:.35em;letter-spacing:.02em}
 .stampbtn.selfchk{background:#9fd3e8;color:var(--ink)!important}.stampbtn.selfchk.on{background:var(--card)}
 #titleLock{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;position:relative;padding:4px 6px;border-radius:10px;background:linear-gradient(90deg,#ffb39966 0 0) no-repeat 0 0/0% 100%}
 #titleLock.holding{background-size:100% 100%;transition:background-size var(--hold,3s) linear}
@@ -2044,6 +2045,8 @@ function keyText(k){const p=k.split('|');if(p.length<4)return null;const cut=p[1
 function weaknessOf(id){return [...new Set(Object.keys(P.got).sort((a,b)=>(P.got[b]||'').localeCompare(P.got[a]||'')).filter(k=>speciesOf(k).id===id).map(keyText).filter(Boolean))]}
 // 出沒地點＝他在作戰地圖哪一區抓到這隻怪獸
 const sectorName=uid=>REGION[uid]?REGION[uid].name:'';
+// 出沒地點前面標第幾課（Unit 1→U1，Starter、節慶照課本寫）
+const unitTag=uid=>{const U=UNITS.find(u=>u.id===uid);if(!U)return '';const m=/^Unit (\d+)/.exec(U.en);return `<span class="ul">${m?'U'+m[1]:esc(U.en)}</span>`};
 // 每隻怪獸出沒的區域數不一樣（2～5 個），補空白行到同樣行數，圖鑑卡片長度才一致
 let habMaxCache={};
 function habMax(){const c=(curCourse()||{}).id||'';if(habMaxCache[c])return habMaxCache[c];
@@ -2052,14 +2055,14 @@ function habMax(){const c=(curCourse()||{}).id||'';if(habMaxCache[c])return habM
   return habMaxCache[c]=Math.max(1,...Object.values(per).map(v=>v.size))}
 function habPad(lines){const n=habMax();const out=lines.map(l=>l.startsWith('<span')?l:`<span>${l}</span>`);while(out.length<n)out.push('<span class="habpad">&nbsp;</span>');return '<span class="hab">'+out.join('')+'</span>'}
 function habitatHTML(k){
-  if(k.r===4){const uid=Object.keys(BOSSES).find(id=>BOSSES[id]===k);return habPad([esc(sectorName(uid))])}
-  // 列出牠會出沒的所有區域：抓到過的打勾，還沒去過的用灰色字，引導孩子去那一區學剩下的弱點單字
+  if(k.r===4){const uid=Object.keys(BOSSES).find(id=>BOSSES[id]===k);return habPad(['<span>'+unitTag(uid)+esc(sectorName(uid))+'</span>'])}
+  // 列出牠會出沒的所有區域：抓到過的正常顏色，還沒去過的用灰色字，引導孩子去那一區學剩下的弱點單字
   const uidOf=x=>{const t=x.split('|')[1]||'';return t.slice(0,t.indexOf('-'))};
   const mine=x=>{const sp=speciesOf(x);return sp&&sp.id===k.id};
   const all=new Set(allKeys().filter(mine).map(uidOf)),got=new Set(Object.keys(P.got).filter(mine).map(uidOf));
   const ids=UNITS.map(u=>u.id).filter(uid=>all.has(uid));
   if(!ids.length)return habPad(['？？？']);
-  return habPad(ids.map(uid=>got.has(uid)?`<span>${esc(sectorName(uid))} ✓</span>`:`<span class="unexplored">${esc(sectorName(uid))}</span>`));
+  return habPad(ids.map(uid=>got.has(uid)?`<span>${unitTag(uid)}${esc(sectorName(uid))}</span>`:`<span class="unexplored">${unitTag(uid)}${esc(sectorName(uid))}</span>`));
 }
 function weakHTML(k){
   if(k.r===4){const u=Object.keys(BOSSES).find(id=>BOSSES[id]===k);return '這一區的全部單字'}
@@ -2520,7 +2523,7 @@ function bindWhiteboard(){
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-15g';
+const APP_VER='2026-11-15i';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
