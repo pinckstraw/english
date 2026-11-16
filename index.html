@@ -1357,6 +1357,7 @@ function mergeProg(inc,quiet){
   let changed=false;const newGot=[];const q0=celeQueue.length;
   ['got','topics','badges','days'].forEach(f=>{const src=inc[f];if(!src||typeof src!=='object')return;
     for(const k in src){if(!P[f][k]){P[f][k]=src[k];changed=true;if(f==='badges'&&!quiet)celeQueue.push(k);if(f==='got')newGot.push(k)}}});
+  if(+inc.seen>(P.seen||0)){P.seen=+inc.seen;changed=true}   // 最近上線時間：取比較晚的
   if(inc.evo&&typeof inc.evo==='object')for(const k in inc.evo){const v=+inc.evo[k]||1;if(v>(P.evo[k]||1)){P.evo[k]=v;changed=true;if(booted&&status==='on'&&!quiet)evoAnim(k,v)}}
   if(!quiet&&booted&&status==='on'&&newGot.length&&newGot.length<=2)newGot.forEach(k=>catchAnim(k));
   if(changed){checkBadges();if(quiet)celeQueue.length=q0;store.set(progKey(),P);scheduleSave();updateCounters();showCele();if(nav.u<0)render()}
@@ -1383,12 +1384,22 @@ let saveT=null;
 function logEv(text){pendingEv.push([Date.now(),text]);send({t:'ev',e:[Date.now(),text]})}
 function shouldSave(){return !!sheetURL&&(role==='mom'||status!=='on')}
 function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(saveSheet,2500)}
+// 最近上線：孩子的平板開著網頁（自己練習或跟家長連線）時記下時間，每 5 分鐘更新一次；家長自己開著、孩子沒連上不算
+function markSeen(){
+  if(document.hidden||!curStu())return;
+  if(!(role==='kid'||(role==='mom'&&status==='on')))return;
+  if(Date.now()-(P.seen||0)<5*60000)return;
+  P.seen=Date.now();store.set(progKey(),P);if(shouldSave())scheduleSave();
+  if(role==='kid'&&status==='on')try{send({t:'prog',P})}catch(e){}
+}
+setInterval(markSeen,60000);setTimeout(markSeen,5000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(markSeen,3000)});
 function summary(){
   const topics=allTopics().map(([u,t])=>{const U=UNITS[u],T=U.topics[t],r=topicStars(u,t),tid=tidOf(u,t);
     return [U.en+' '+U.zh,T.title,'★'.repeat(r.rate)+'☆'.repeat(3-r.rate),r.got+' / '+r.all,P.topics[tid]||'']});
   const badges=BADGES.map(b=>[b.i+' '+b.n,b.d,badgeHas(b.id)]);
   const overview=[['學生',kidName()],['課程',(curCourse()||{}).name||'尚未安排'],['怪獸總數',starCount()],['進化的怪獸',Object.values(P.evo).filter(v=>v>=2).length],['異色怪獸',KAIJU.filter(k=>shinyOwned(k.id)).length],['圖鑑種類',Object.keys(dexCounts()).length+' / '+KAIJU.length],[''+PN()+'印章',stampCount()],['完成主題',Object.keys(P.topics).length+' / '+allTopics().length],
-    ['徽章',BADGES.filter(b=>badgeHas(b.id)).length+' / '+BADGES.length],['連續上課天數',streak()+' 天'],['總上課天數',Object.keys(P.days).length+' 天'],['最後更新',new Date().toLocaleString('zh-TW')]];
+    ['徽章',BADGES.filter(b=>badgeHas(b.id)).length+' / '+BADGES.length],['連續上課天數',streak()+' 天'],['總上課天數',Object.keys(P.days).length+' 天'],['最近上線',P.seen?new Date(P.seen).toLocaleString('zh-TW',{year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):'還沒上線過']];
   return {topics,badges,overview};
 }
 function sheetMeta(){const x=curStu()||{},c=curCourse();return {key:progKey().slice(5),student:{id:x.id,name:x.name||''},course:{id:c?c.id:'',name:c?c.name:''},students:STUDENTS.map(y=>Object.assign({},y,{courseName:COURSES[y.course]?COURSES[y.course].name:''})),studentsAt,roomCode:role==='mom'?code:''}}
@@ -1590,6 +1601,7 @@ function onMsg(m){
       if(Array.isArray(m.list)&&m.list.length)adoptStudents(m.list,m.at||1);hostWord(m.pn);
       nav=m.nav;S=Object.assign({stamped:{}},m.S);if(S.music)setTimeout(()=>showPlayer(S.music),300);if(typeof m.sheet==='string'&&m.sheet){sheetURL=m.sheet;store.set('sheet',sheetURL)}mergeProg(m.P,true);render();break;
     case 'nav': nav=m.nav;render();break;
+    case 'scroll': applyScroll(m);break;
     case 'prog': mergeProg(m.P);break;
     case 'music':
       if(m.op==='play'){S.music=m.m;S.musicState='loading';showPlayer(m.m)}
@@ -1619,6 +1631,18 @@ function onMsg(m){
   }
 }
 function act(m){onMsg(m);send(m)}   // 自己做 + 告訴對方
+/* 滑動同步：誰上下滑，對方的畫面就跟著滑到同一個位置（兩邊版面一樣寬，位置會對齊）
+   只傳「手指／滑鼠真的在滑」造成的捲動，收到對方的位置時不會再傳回去，避免互相拉扯；開著設定時不同步 */
+let userScrollAt=0,scrollT=null,lastSentY=-1;
+['touchstart','touchmove','touchend','wheel','keydown'].forEach(e=>window.addEventListener(e,()=>{userScrollAt=Date.now()},{passive:true,capture:true}));
+window.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')userScrollAt=Date.now()},{capture:true});   // 拖拉捲軸
+const navKey=()=>[nav.u,nav.t,nav.s,nav.sub].join(',');
+function sendScroll(){scrollT=null;const y=Math.round(window.scrollY);if(y===lastSentY)return;lastSentY=y;send({t:'scroll',y,n:navKey()})}
+window.addEventListener('scroll',()=>{
+  if(settingsOpen||status!=='on'||Date.now()-userScrollAt>1500)return;   // 不是自己滑的（例如對方帶動的）就不傳
+  if(!scrollT)scrollT=setTimeout(sendScroll,70);
+},{passive:true});
+function applyScroll(m){if(settingsOpen||m.n!==navKey())return;lastSentY=Math.round(+m.y||0);userScrollAt=0;window.scrollTo(0,lastSentY)}
 function go(n){settingsOpen=false;nav=Object.assign({},nav,n);send({t:'nav',nav});render();window.scrollTo(0,0)}
 function sayShared(text,hk){act({t:'say',text,hk})}
 function flash(hk){if(!hk)return;const el=document.querySelector(`[data-hk="${hk}"]`);if(!el)return;el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1200)}
@@ -2525,7 +2549,7 @@ function bindWhiteboard(){
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-15l';
+const APP_VER='2026-11-16a';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
