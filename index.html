@@ -1248,12 +1248,12 @@ function evolve(id){
 function evoAnim(id,lv){
   const k=KAIJU.find(x=>x.id===id);if(!k)return;
   document.querySelectorAll('.evoanim').forEach(e=>e.remove());
-  const o=document.createElement('div');o.className='overlay evoanim';
+  const o=document.createElement('div');o.className='overlay evoanim';o.dataset.pop='evo:'+id+':'+lv;
   o.innerHTML=`<div class="cele evocard"><div class="h">⚡ EVOLUTION ⚡</div>
     <div class="evorow"><span class="from">${kaijuSVG(k,{size:90,lv:lv-1})}</span><span class="arrow">➜</span><span class="to">${kaijuSVG(k,{size:150,lv})}</span></div>
     <div class="n">${esc(k.n)} 進化成 ${esc(evoName(k,lv))}！</div><p>${lvText(lv-1)} → ${lvText(lv)}</p><button class="big" style="margin-top:6px">太帥了！</button></div>`;
   document.body.appendChild(o);try{say('Level up!')}catch(e){}
-  o.querySelector('button').onclick=()=>o.remove();
+  o.querySelector('button').onclick=()=>{o.remove();send({t:'popclose',id:o.dataset.pop})};   // 一邊按掉，另一邊也一起關
 }
 function catchAnim(key,label){
   if(shownCatch.has(key))return;shownCatch.add(key);
@@ -1366,12 +1366,19 @@ function mergeProg(inc,quiet){
 function showCele(){
   if(!celeQueue.length||$('.overlay'))return;
   const id=celeQueue.shift(),b=BADGES.find(x=>x.id===id);if(!b){showCele();return}
-  const o=document.createElement('div');o.className='overlay';
+  const o=document.createElement('div');o.className='overlay';o.dataset.pop='badge:'+id;
   const boss=BOSSES[id];
   o.innerHTML=boss?`<div class="cele"><div class="h">關主怪獸加入圖鑑！</div>${kaijuSVG(boss,{size:150})}<div class="n">${esc(boss.n)}</div><p>${esc(boss.d)}</p><p>還拿到徽章「${esc(b.n)}」</p><button class="big" style="margin-top:8px">好耶！</button></div>`
     :`<div class="cele"><div class="h">獲得新徽章！</div><div class="bi">${b.i}</div><div class="n">${esc(b.n)}</div><p>${esc(b.d)}</p><button class="big" style="margin-top:8px">好耶！</button></div>`;
   document.body.appendChild(o);say('Great job!');
-  o.querySelector('button').onclick=()=>{o.remove();showCele()};
+  o.querySelector('button').onclick=()=>{o.remove();send({t:'popclose',id:o.dataset.pop});showCele()};
+}
+// 對方按掉了進化或徽章視窗：這邊也關掉（還沒跳出來的就不用再跳）
+function popClose(id){
+  id=String(id||'');
+  if(id.startsWith('badge:')){const b=id.slice(6);const i=celeQueue.indexOf(b);if(i>=0)celeQueue.splice(i,1)}
+  let was=false;document.querySelectorAll('.overlay').forEach(o=>{if(o.dataset.pop===id){o.remove();was=true}});
+  if(was&&id.startsWith('badge:'))showCele();
 }
 function updateCounters(){document.querySelectorAll('[data-stars]').forEach(el=>el.textContent=starCount())}
 
@@ -1602,6 +1609,7 @@ function onMsg(m){
       nav=m.nav;S=Object.assign({stamped:{}},m.S);if(S.music)setTimeout(()=>showPlayer(S.music),300);if(typeof m.sheet==='string'&&m.sheet){sheetURL=m.sheet;store.set('sheet',sheetURL)}mergeProg(m.P,true);render();break;
     case 'nav': nav=m.nav;render();break;
     case 'scroll': applyScroll(m);break;
+    case 'popclose': popClose(m.id);break;
     case 'prog': mergeProg(m.P);break;
     case 'music':
       if(m.op==='play'){S.music=m.m;S.musicState='loading';showPlayer(m.m)}
@@ -1637,12 +1645,12 @@ let userScrollAt=0,scrollT=null,lastSentY=-1;
 ['touchstart','touchmove','touchend','wheel','keydown'].forEach(e=>window.addEventListener(e,()=>{userScrollAt=Date.now()},{passive:true,capture:true}));
 window.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')userScrollAt=Date.now()},{capture:true});   // 拖拉捲軸
 const navKey=()=>[nav.u,nav.t,nav.s,nav.sub].join(',');
-function sendScroll(){scrollT=null;const y=Math.round(window.scrollY);if(y===lastSentY)return;lastSentY=y;send({t:'scroll',y,n:navKey()})}
+function sendScroll(){scrollT=null;const y=Math.round(window.scrollY);if(y===lastSentY)return;lastSentY=y;send({t:'scroll',y:Math.round(y/pageW()*1000*10)/10,n:navKey()})}
 window.addEventListener('scroll',()=>{
   if(settingsOpen||status!=='on'||Date.now()-userScrollAt>1500)return;   // 不是自己滑的（例如對方帶動的）就不傳
   if(!scrollT)scrollT=setTimeout(sendScroll,70);
 },{passive:true});
-function applyScroll(m){if(settingsOpen||m.n!==navKey())return;lastSentY=Math.round(+m.y||0);userScrollAt=0;window.scrollTo(0,lastSentY)}
+function applyScroll(m){if(settingsOpen||m.n!==navKey())return;const y=Math.round((+m.y||0)*pageW()/1000);lastSentY=y;userScrollAt=0;window.scrollTo(0,y)}
 function go(n){settingsOpen=false;nav=Object.assign({},nav,n);send({t:'nav',nav});render();window.scrollTo(0,0)}
 function sayShared(text,hk){act({t:'say',text,hk})}
 function flash(hk){if(!hk)return;const el=document.querySelector(`[data-hk="${hk}"]`);if(!el)return;el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1200)}
@@ -2354,7 +2362,7 @@ function setupBoard(text,bk,rows){
   const lay=()=>rows?layoutBlank(ctx,rows):layoutText(ctx,text);
   const L=lay();
   board={cv,ctx,L,text,bk,blank:!!rows};
-  const fit=()=>{const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1,L2=board.L;cv.style.height=(r.width*L2.H/LW)+'px';
+  const fit=()=>{const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1,L2=board.L;cv.style.height=(cv.clientWidth*L2.H/LW)+'px';   // 高度用排版寬度算（整頁放大時不重複放大）
     cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.width*L2.H/LW*dpr);boardRedraw(bk)};
   fit();
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(board&&board.bk===bk&&document.body.contains(cv)){board.L=lay();fit()}});
@@ -2412,7 +2420,7 @@ const inkKey=()=>'ink:'+[nav.u,nav.t,nav.s,nav.sub].join('-');
 function redrawAny(k){if(String(k).startsWith('ink:')){if(k===inkKey()){inkRedraw();renderPenbar()}}else boardRedraw(k)}
 function inkFit(){
   const pg=$('#page'),cv=$('#ink');if(!pg||!cv)return;
-  const app=$('#app'),w=pg.clientWidth,h=Math.max(app.offsetHeight,window.innerHeight-10),dpr=window.devicePixelRatio||1;  // 用內容高度，不用畫布自己撐出來的高度
+  const app=$('#app'),w=pg.clientWidth,h=Math.max(app.offsetHeight,(window.innerHeight-10)/fitZ),dpr=(window.devicePixelRatio||1)*fitZ;  // 用內容高度，不用畫布自己撐出來的高度
   if(cv._w!==w||cv._h!==h){cv.style.width=w+'px';cv.style.height=h+'px';cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv._w=w;cv._h=h}
   inkRedraw();
 }
@@ -2544,12 +2552,34 @@ function bindWhiteboard(){
   setupBoard('',k,4);
 }
 
+/* ===================== 每台裝置排版一樣 =====================
+   有些平板（例如 iPad 橫放、或 Safari 開了「桌面版網站」）不理會「固定 820 寬」的設定，
+   畫面會排得比較寬，孩子和家長看到的位置就對不起來，畫筆圈的地方也會偏掉。
+   這裡一律用 820 寬來排版，再把整頁等比例放大或縮小填滿螢幕；螢幕很寬（電腦）時最多放大 1.5 倍，置中顯示。 */
+var fitZ=1;
+function fitWidth(){
+  const pg=document.getElementById('page');if(!pg)return;
+  const w=document.documentElement.clientWidth||window.innerWidth;   // 不含捲軸的寬度
+  let z=1;
+  if(w&&Math.abs(w-820)>2)z=Math.min((w-28)/792,1.5);   // 820 寬扣掉左右 14px 邊界 = 792
+  if(z===1){pg.style.width=pg.style.transform=pg.style.transformOrigin=pg.style.marginLeft=pg.style.marginBottom='';fitZ=1;return}
+  fitZ=z;
+  pg.style.width='792px';pg.style.transformOrigin='0 0';pg.style.transform='scale('+z+')';
+  pg.style.marginLeft=Math.max(0,((w-28)-792*z)/2)+'px';
+  pg.style.marginBottom=(pg.offsetHeight*(z-1))+'px';   // 放大後的高度要算進可以捲動的範圍
+}
+fitWidth();
+window.addEventListener('resize',()=>{fitWidth();try{inkFit()}catch(e){}});
+try{new ResizeObserver(()=>{if(fitZ!==1){const pg=document.getElementById('page');pg.style.marginBottom=(pg.offsetHeight*(fitZ-1))+'px'}}).observe(document.getElementById('page'))}catch(e){}
+// 滑動同步用的位置：換算成「頁面寬度 1000」的單位，兩邊放大倍數不同也能對準
+const pageW=()=>{const p=document.getElementById('page');return (p&&p.getBoundingClientRect().width)||820};
+
 /* ===================== 自動更新 =====================
    網頁有新版本時，不用按重新整理，隨時都會自己換：
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-16a';
+const APP_VER='2026-11-17b';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
