@@ -165,6 +165,7 @@ input.codein{height:56px;width:190px;font:700 28px var(--en);letter-spacing:.15e
 .prompt .q{font:700 26px var(--en)}
 .prompt .z{font-size:19px;color:var(--muted)}
 .opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.catchrows{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}.catchrow{display:flex;align-items:center;gap:10px;padding:4px 8px;border:2px solid var(--line,#e8d9c7);border-radius:14px;background:#fffdf8}.catchrow b{display:block}.catchrow small{color:#8a7468;font-family:var(--en)}
 .opts.opts3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .opts.opts4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .opt .letter{font:700 46px var(--en)}
@@ -1139,7 +1140,8 @@ function rng(seed){let a=hash(seed);return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.
 function shuffle(arr,seed){const r=rng(seed),a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 const store = {get(k,d){try{const v=localStorage.getItem('hl5:'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('hl5:'+k,JSON.stringify(v))}catch(e){}}};
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
-function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dayStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function today(){return dayStr(new Date())}
 const tidOf=(u,t)=>UNITS[u].id+'-'+UNITS[u].topics[t].id;
 
 /* 念出來 */
@@ -1269,6 +1271,7 @@ const lvText=lv=>lv===3?'MAX':'Lv.'+lv;
 function evolve(id){
   const k=KAIJU.find(x=>x.id===id),lv=evoLevel(id);
   if(!k||lv>=3||evoAllowedFor(id)<=lv)return;
+  if(preview()){previewToast();return}
   P.evo[id]=lv+1;logEv(`怪獸進化：${k.n} → ${evoName(k,lv+1)}`);
   evoAnim(id,lv+1);progChanged();render();
 }
@@ -1361,6 +1364,7 @@ let celeQueue=[];
 const isBossBadge=id=>Object.prototype.hasOwnProperty.call(BOSSES,id);
 function badgeHas(id){if(!isBossBadge(id))return P.badges[id]||'';return unitDone(id)?(P.badges['b2_'+id]||today()):''}
 function grantBadge(id){
+  if(preview())return false;
   if(isBossBadge(id)){if(P.badges['b2_'+id])return false;P.badges['b2_'+id]=today()}
   else{if(P.badges[id])return false;P.badges[id]=today()}const b=BADGES.find(x=>x.id===id);logEv('獲得徽章：'+b.n);celeQueue.push(id);return true}
 function checkBadges(){if(!UNITS.length)return;BADGES.forEach(b=>{const has=isBossBadge(b.id)?P.badges['b2_'+b.id]:P.badges[b.id];if(!has&&b.ok())grantBadge(b.id)})}
@@ -1372,9 +1376,15 @@ function progChanged(){
   updateCounters();
   showCele();
 }
+// 預覽：家長自己開著、孩子沒連上時，題目可以做，但不抓怪獸、不記進度（測試題目不會算到孩子身上）
+const preview=()=>role==='mom'&&status!=='on';
+let previewTold=false;
+function previewToast(){if(!previewTold){previewTold=true;toast(kidName()+'沒有連上，現在是預覽：不會抓怪獸、不記進度')}}
 function award(k){
+  if(preview()){previewToast();return false}
   if(P.got[k])return false;
   P.got[k]=today();P.days[today()]=1;
+  if(P.del&&P.del[k]){P.again=P.again||{};P.again[k]=Date.now()}   // 之前刪掉的，這次重新抓到
   catchAnim(k,arguments[1]);
   progChanged();return true;
 }
@@ -1385,11 +1395,16 @@ function mergeProg(inc,quiet){
   ['got','topics','badges','days'].forEach(f=>{const src=inc[f];if(!src||typeof src!=='object')return;
     for(const k in src){if(!P[f][k]){P[f][k]=src[k];changed=true;if(f==='badges'&&!quiet)celeQueue.push(k);if(f==='got')newGot.push(k)}}});
   if(+inc.seen>(P.seen||0)){P.seen=+inc.seen;changed=true}   // 最近上線時間：取比較晚的
+  ['del','again'].forEach(f=>{const src=inc[f];if(!src||typeof src!=='object')return;P[f]=P[f]||{};for(const k in src)if(+src[k]>(+P[f][k]||0)){P[f][k]=+src[k];changed=true}});
+  if(applyDel())changed=true;
   if(inc.evo&&typeof inc.evo==='object')for(const k in inc.evo){const v=+inc.evo[k]||1;if(v>(P.evo[k]||1)){P.evo[k]=v;changed=true;if(booted&&status==='on'&&!quiet)evoAnim(k,v)}}
   if(!quiet&&booted&&status==='on'&&newGot.length&&newGot.length<=2)newGot.forEach(k=>catchAnim(k));
   if(changed){checkBadges();if(quiet)celeQueue.length=q0;store.set(progKey(),P);scheduleSave();updateCounters();showCele();if(nav.u<0)render()}
   return changed;
 }
+// 刪掉的怪獸：刪除時間比重新抓到的時間晚，就不算有抓到
+function applyDel(){let ch=false;const d=P.del||{},a=P.again||{};for(const k in d)if(P.got[k]&&+d[k]>(+a[k]||0)){delete P.got[k];ch=true}return ch}
+function removeCatch(k){if(!P.got[k])return;delete P.got[k];P.del=P.del||{};P.del[k]=Date.now();logEv('刪除測試抓到的怪獸：'+(k.split('|')[3]||k));progChanged();render()}
 function showCele(){
   if(!celeQueue.length||$('.overlay'))return;
   const id=celeQueue.shift(),b=BADGES.find(x=>x.id===id);if(!b){showCele();return}
@@ -1415,7 +1430,7 @@ let sheetState='';       // '' | 'ok' | 'err' | 'saving'
 let lastSaved=null;
 let pendingEv=[];
 let saveT=null;
-function logEv(text){pendingEv.push([Date.now(),text]);send({t:'ev',e:[Date.now(),text]})}
+function logEv(text){if(preview())return;pendingEv.push([Date.now(),text]);send({t:'ev',e:[Date.now(),text]})}
 function shouldSave(){return !!sheetURL&&(role==='mom'||status!=='on')}
 function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(saveSheet,2500)}
 // 最近上線：孩子的平板開著網頁（自己練習或跟家長連線）時記下時間，每 5 分鐘更新一次；家長自己開著、孩子沒連上不算
@@ -1729,6 +1744,7 @@ function renderInner(){
   $('#prev').onclick=()=>nav.s>0?go({s:nav.s-1,sub:0}):go({u:-1});
   $('#next').onclick=()=>{
     if(nav.s<T.steps.length-1){go({s:nav.s+1,sub:0});return}
+    if(preview()){toast('預覽結束（'+kidName()+'沒有連上，不記進度）');go({u:-1});return}
     const tid=tidOf(nav.u,nav.t),first=!P.topics[tid];
     if(first)P.topics[tid]=today();
     P.days[today()]=1;
@@ -1942,6 +1958,9 @@ function settingsHTML(){
     <p class="hint">貼上 Apps Script 部署後拿到的網址（https://script.google.com/macros/s/…/exec）。${PN()}設定好之後，孩子連線時會自動帶過去。每個孩子在試算表裡有自己的分頁。</p>
     <input id="sheetIn" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(sheetURL)}">
     <div class="row"><button class="big" id="sheetSave">儲存並測試</button><span class="hint" id="sheetState"></span></div>
+    <h3>最近 3 天抓到的怪獸（${esc(kidName())}）</h3>
+    <p class="hint">測試題目時不小心抓到的，可以在這裡刪掉，所有裝置和試算表都會一起刪。</p>
+    <div id="catchList">${catchListHTML()}</div>
     <h3>清除這台裝置的資料</h3>
     <p class="hint">把這台裝置上存的怪獸、單字、學生名單、身分和設定全部清掉，變回第一次打開的樣子（例如測試用過的手機）。試算表裡的紀錄不會被刪，其他平板也不受影響。</p>
     <div class="row" id="wipeRow"><button class="big ghost" id="wipeAsk">清除這台裝置的資料</button></div>
@@ -1994,7 +2013,7 @@ function bindHome(){
   q('wbBtn').onclick=openWB;
   if(q('setBtn'))q('setBtn').onclick=()=>{const box=q('settingsBox');if(box.hidden)openSettings();else{box.hidden=true;settingsOpen=false}};
 }
-function openSettings(){const q=id=>document.getElementById(id);const box=q('settingsBox');if(!box)return;box.hidden=false;settingsOpen=true;{box.innerHTML=settingsHTML();renderSheetState();bindWipe();bindStudents();if(q('pcopy'))q('pcopy').onclick=()=>copyText(parentLink(),'已複製家長連結，用 LINE 傳給他');if(q('copy'))q('copy').onclick=()=>{const t=q('link').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製，貼到 LINE 傳給孩子')).catch(()=>{const r=document.createRange();r.selectNodeContents(q('link'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('已選取連結，請按「拷貝」')})};
+function openSettings(){const q=id=>document.getElementById(id);const box=q('settingsBox');if(!box)return;box.hidden=false;settingsOpen=true;{box.innerHTML=settingsHTML();renderSheetState();bindWipe();bindCatches();bindStudents();if(q('pcopy'))q('pcopy').onclick=()=>copyText(parentLink(),'已複製家長連結，用 LINE 傳給他');if(q('copy'))q('copy').onclick=()=>{const t=q('link').textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已複製，貼到 LINE 傳給孩子')).catch(()=>{const r=document.createRange();r.selectNodeContents(q('link'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('已選取連結，請按「拷貝」')})};
     q('setMute').onclick=()=>{toggleMute(false);const b2=document.getElementById('setMute');if(b2){b2.textContent=muteLabel();b2.classList.remove('flashok');void b2.offsetWidth;b2.classList.add('flashok')}};
     q('setClose').onclick=()=>{q('settingsBox').hidden=true;settingsOpen=false};
     q('sheetSave').onclick=async()=>{const v=q('sheetIn').value.trim();
@@ -2027,6 +2046,22 @@ function showParentPop(){
     startMom();render();if(sheetURL)loadSheet();toast('歡迎，'+v+'！');
   };
   setTimeout(()=>inp.focus(),300);
+}
+const tidName=tid=>{for(const U of UNITS)for(const T of U.topics)if(U.id+'-'+T.id===tid)return U.en+' '+T.title;return tid};
+function catchListHTML(){
+  const days=[0,1,2].map(n=>{const d=new Date();d.setDate(d.getDate()-n);return dayStr(d)});   // 今天、昨天、前天
+  const ks=Object.keys(P.got).filter(k=>days.includes(P.got[k])&&!k.startsWith('s|')).sort((a,b)=>P.got[b].localeCompare(P.got[a]));
+  if(!ks.length)return '<p class="hint">最近 3 天還沒有抓到怪獸。</p>';
+  const dl=d=>d===days[0]?'今天':d===days[1]?'昨天':'前天';
+  return '<div class="catchrows">'+ks.map(k=>{const sp=speciesOf(k);const w=k.split('|')[3]||'';const tid=k.split('|')[1]||'';
+    return `<div class="catchrow" data-ck="${esc(k)}">${kaijuSVG(sp,{size:44,lv:evoLevel(sp.id),shiny:isShiny(k)})}<span><b>${esc(sp.n)}</b><small>${esc(tidName(tid))}　${esc(w)}</small></span><span style="flex:1"></span><span class="hint">${dl(P.got[k])}</span><button class="toggle ckdel">刪除</button></div>`}).join('')+'</div>';
+}
+function bindCatches(){
+  document.querySelectorAll('.catchrow .ckdel').forEach(b=>b.onclick=()=>{
+    const row=b.closest('.catchrow'),k=row.dataset.ck;
+    if(b.dataset.sure){removeCatch(k);const box=document.getElementById('catchList');if(box){box.innerHTML=catchListHTML();bindCatches()}toast('已刪除');return}
+    b.dataset.sure='1';b.textContent='確定刪除？';b.classList.add('on');
+  });
 }
 function bindWipe(){
   const ask=document.getElementById('wipeAsk');if(!ask)return;
@@ -2250,7 +2285,7 @@ function quizHTML(T,st){
   return `<div class="qhead"><h3>${esc(st.label)}</h3><span class="qnum">第 ${nav.sub+1} 題 / 共 ${items.length} 題</span>${masteryHTML(T)}</div>${tipHTML(st)}
   <div class="prompt">${prompt}</div>
   <div class="opts ${st.mode==='circle'?'opts3':st.mode==='gap'?'opts4':''}" style="${st.mode==='qa'?'grid-template-columns:1fr':''}">${it.opts.map(optHTML).join('')}</div>
-  <div class="verdict ${answered?(ok?'ok':'no'):''}">${answered?(ok?'答對了！抓到一隻怪獸！':'差一點！綠色的才是正確答案，一起念一次。'):''}</div>
+  <div class="verdict ${answered?(ok?'ok':'no'):''}">${answered?(ok?(preview()?'答對了！（預覽，不抓怪獸）':'答對了！抓到一隻怪獸！'):'差一點！綠色的才是正確答案，一起念一次。'):''}</div>
   ${answered?`<div class="row"><button class="big" id="nextq">${nav.sub<items.length-1?'下一題 →':'看成績'}</button></div>`:''}`;
 }
 /* 排句子 */
@@ -2622,7 +2657,7 @@ const pageW=()=>{const p=document.getElementById('page');return (p&&p.getBoundin
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-19a';
+const APP_VER='2026-11-19c';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
