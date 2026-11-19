@@ -2047,14 +2047,21 @@ function showParentPop(){
   };
   setTimeout(()=>inp.focus(),300);
 }
-const tidName=tid=>{for(const U of UNITS)for(const T of U.topics)if(U.id+'-'+T.id===tid)return U.en+' '+T.title;return tid};
+const topicOfTid=tid=>{for(const U of UNITS)for(const T of U.topics)if(U.id+'-'+T.id===tid)return [U,T];return [null,null]};
+const tidName=tid=>{const [U,T]=topicOfTid(tid);return U?U.en+' '+T.title:tid};
+// 怪獸是哪一題抓到的：單字、句子，排句子和蓋章的題目換成真正的句子／單字
+function keyLabel(k){const [ty,tid,si,it]=k.split('|');const [,T]=topicOfTid(tid);
+  if(T&&ty==='b'&&T.build)return T.build[+it]||it;
+  if(T&&ty==='s'){const st=T.steps[+si];return (st&&st.items&&st.items[+it])||it}
+  return it||''}
 function catchListHTML(){
   const days=[0,1,2].map(n=>{const d=new Date();d.setDate(d.getDate()-n);return dayStr(d)});   // 今天、昨天、前天
-  const ks=Object.keys(P.got).filter(k=>days.includes(P.got[k])&&!k.startsWith('s|')).sort((a,b)=>P.got[b].localeCompare(P.got[a]));
+  // 同一天裡，越晚抓到的排越上面
+  const ks=Object.keys(P.got).filter(k=>days.includes(P.got[k])).reverse().sort((a,b)=>P.got[b].localeCompare(P.got[a]));
   if(!ks.length)return '<p class="hint">最近 3 天還沒有抓到怪獸。</p>';
   const dl=d=>d===days[0]?'今天':d===days[1]?'昨天':'前天';
-  return '<div class="catchrows">'+ks.map(k=>{const sp=speciesOf(k);const w=k.split('|')[3]||'';const tid=k.split('|')[1]||'';
-    return `<div class="catchrow" data-ck="${esc(k)}">${kaijuSVG(sp,{size:44,lv:evoLevel(sp.id),shiny:isShiny(k)})}<span><b>${esc(sp.n)}</b><small>${esc(tidName(tid))}　${esc(w)}</small></span><span style="flex:1"></span><span class="hint">${dl(P.got[k])}</span><button class="toggle ckdel">刪除</button></div>`}).join('')+'</div>';
+  return `<p class="hint">共 ${ks.length} 隻，最新的在最上面${ks.length>4?'，往下滑看更多':''}。</p><div class="catchrows">`+ks.map(k=>{const sp=speciesOf(k);const tid=k.split('|')[1]||'';
+    return `<div class="catchrow" data-ck="${esc(k)}">${kaijuSVG(sp,{size:44,lv:evoLevel(sp.id),shiny:isShiny(k)})}<span><b>${esc(sp.n)}</b><small>${esc(tidName(tid))}　${esc(keyLabel(k))}</small></span><span style="flex:1"></span><span class="hint">${dl(P.got[k])}</span><button class="toggle ckdel">刪除</button></div>`}).join('')+'</div>';
 }
 function bindCatches(){
   document.querySelectorAll('.catchrow .ckdel').forEach(b=>b.onclick=()=>{
@@ -2657,7 +2664,7 @@ const pageW=()=>{const p=document.getElementById('page');return (p&&p.getBoundin
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-19c';
+const APP_VER='2026-11-19d';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
