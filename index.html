@@ -165,6 +165,12 @@ input.codein{height:56px;width:190px;font:700 28px var(--en);letter-spacing:.15e
 .prompt .q{font:700 26px var(--en)}
 .prompt .z{font-size:19px;color:var(--muted)}
 .opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.opts.opts3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.opts.opts4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.opt .letter{font:700 46px var(--en)}
+.gapword{font:700 52px var(--en);letter-spacing:.06em;margin:0 6px}
+.gapbox{display:inline-block;min-width:.9em;border-bottom:5px solid var(--coral);color:var(--coral);text-align:center}
+.gapfill{color:#2e9d5b;border-bottom:5px solid #2e9d5b}.gapfill.no{color:var(--coral);border-color:var(--coral)}
 .opt{min-height:86px;border:3px solid var(--ink);border-radius:20px;padding:10px;display:flex;align-items:center;justify-content:center;gap:10px;font:700 24px var(--en);background:var(--card);text-align:center;box-shadow:0 4px 0 #5b342733}
 .opt .pic{font-size:44px}
 .opt .pic.txt{font:700 28px var(--en);color:var(--accent-deep)}
@@ -821,7 +827,28 @@ const HANLIN3A = [
    note:'課程計畫沒有列出萬聖節單字，這裡是常見的補充字。'}
  ]}
 ];
-HANLIN3A.forEach(u=>u.topics.forEach(t=>t.steps=STEP_DEFS[t.kind](t)));
+/* 三年級的最後幾題：不考聽寫（太難），改成跟學校一樣的「聽音圈單字」和「聽音補字母」；句型改成照著描句子 */
+const CIRCLE_TIP='<b>帶法：</b>跟學校考法一樣：畫面上只有拼好的英文字、沒有圖。按 🔊 念一個，讓他找出是哪一個字。選完請他指著字念一遍。';
+const GAP_TIP='<b>帶法：</b>按 🔊 讓他聽整個字，想想看空格少了哪個字母。可以提示他「注意聽開頭的聲音」。';
+const STEP_DEFS3={
+  vocab:t=>[
+    {type:'words',label:'看圖學單字',min:4,tip:'<b>帶法：</b>你先按一張卡念兩次，請他跟念。念熟了按「遮住英文」，讓他看圖說英文。'},
+    {type:'quiz',mode:'listen',label:'聽音選圖',min:3,tip:'<b>帶法：</b>按 🔊 播放，讓他在他的平板上選。選錯沒關係，再聽一次。'},
+    {type:'quiz',mode:'read',label:'看圖選單字',min:3,tip:'<b>帶法：</b>請他先把選項念出來再選，練習「看字念音」。'},
+    {type:'quiz',mode:'circle',label:'聽音圈單字',min:3,tip:CIRCLE_TIP},
+    {type:'quiz',mode:'gap',label:'聽音補字母',min:3,tip:GAP_TIP}],
+  phonics:t=>[
+    {type:'phonics',label:'發音規則',min:5,tip:t.tip||LT},
+    {type:'quiz',mode:'listen',label:'聽音選字',min:4,tip:'<b>帶法：</b>播放後讓他選，再請他把答案念一遍。'},
+    {type:'quiz',mode:'circle',label:'聽音圈單字',min:3,tip:CIRCLE_TIP},
+    {type:'quiz',mode:'gap',label:'聽音補字母',min:3,gapFirst:true,tip:'<b>帶法：</b>空格是開頭的字母。按 🔊 讓他聽開頭的聲音，選出是哪個字母，再把整個字念一遍。'}],
+  pattern:t=>[
+    {type:'dialog',label:'聽說句型',min:4,tip:'<b>帶法：</b>先按泡泡聽一次。再分角色：你念 A，他念 B；然後交換。'},
+    {type:'build',label:'排排看',min:4,tip:'<b>帶法：</b>讓他自己按字卡排出句子，排好後一起念一遍。'},
+    {type:'quiz',mode:'qa',label:'怎麼回答？',min:3,tip:'<b>帶法：</b>你念問句，他選回答，再請他把回答念出來。'},
+    {type:'write',label:'描句子',trace:true,min:4,items:t.write,tip:'<b>帶法：</b>照著淡灰色的字描一遍。提醒他：開頭字母大寫、字和字之間空一格、句尾有 . 或 ?。描完一起念一次。'}]
+};
+HANLIN3A.forEach(u=>u.topics.forEach(t=>{t.steps=STEP_DEFS3[t.kind](t);if(t.goal)t.goal=t.goal.replace('、寫出','、認得').replace('認得並寫出','認得')}));
 
 /* ===================== 課程庫 =====================
    一本課本＝一筆。之後要加別的出版社或別冊，就在這裡多加一本：
@@ -2171,17 +2198,29 @@ function quizItems(T,st){
     const tid=tidOf(nav.u,nav.t);
     const deck=shuffle(pool,roundSeed(topicKey())+'deck').sort((a,b)=>isMastered(tid,a.en)-isMastered(tid,b.en));
     const n=quizCount(T,st);
-    if(st.mode==='listen')list=deck.slice(0,n);
-    else{list=deck.slice(n,2*n);for(const w of deck){if(list.length>=n)break;if(!list.includes(w))list.push(w)}}
+    // 每種題型從牌堆不同的位置開始拿，同一回合各題型盡量考不同的字
+    const off={listen:0,read:1,circle:2,gap:3}[st.mode]||0;
+    list=[];for(let j=0;j<deck.length&&list.length<n;j++){const w=deck[(off*n+j)%deck.length];if(!list.includes(w))list.push(w)}
   }else list=shuffle(pool,sd+'t');
+  if(st.mode==='gap')return list.map((w,i)=>gapItem(w,st,sd+'g'+i));
   return list.map((w,i)=>{
-    const others=shuffle(pool.filter(x=>x!==w),sd+'d'+i).slice(0,3);
+    const others=shuffle(pool.filter(x=>x!==w),sd+'d'+i).slice(0,st.mode==='circle'?5:3);   // 圈單字：一排 6 個字
     return {w,opts:shuffle([w,...others],sd+'o'+i)};
   });
 }
+// 補字母：挖掉一個字母（字母主題挖開頭），選項是 4 個小寫字母
+function gapItem(w,st,seed){
+  const pos=[];for(let j=0;j<w.en.length;j++)if(/[a-z]/i.test(w.en[j]))pos.push(j);
+  const content=pos.filter(j=>!(w.en.slice(0,2).toLowerCase()==='a '&&j===0));   // 「a pen」的 a 不挖
+  const at=st.gapFirst?content[0]:shuffle(content.length?content:pos,seed+'p')[0];
+  const ans=w.en[at].toLowerCase();
+  const others=shuffle('abcdefghijklmnopqrstuvwxyz'.split('').filter(c=>c!==ans),seed+'l').slice(0,3);
+  return {w,at,ans,opts:shuffle([ans,...others],seed+'o')};
+}
+const quizRight=(st,it,o)=>(st.mode==='qa'||st.mode==='gap')?o===it.ans:o===it.w;
 function quizScore(T,st){
   const items=quizItems(T,st),k=key();
-  return items.filter((it,i)=>{const p=S.picks[k+'-'+i];return p!=null&&(st.mode==='qa'?it.opts[p]===it.ans:it.opts[p]===it.w)}).length;
+  return items.filter((it,i)=>{const p=S.picks[k+'-'+i];return p!=null&&quizRight(st,it,it.opts[p])}).length;
 }
 function quizHTML(T,st){
   const items=quizItems(T,st),k=key();
@@ -2192,22 +2231,25 @@ function quizHTML(T,st){
       <div class="row"><button class="big ghost" id="redo">再做一次（換題目）</button></div></div>`;
   }
   const it=items[nav.sub],pk=k+'-'+nav.sub,p=S.picks[pk];
-  const correct=o=>st.mode==='qa'?o===it.ans:o===it.w;
+  const correct=o=>quizRight(st,it,o);
   const answered=p!=null;
   let prompt='';
   if(st.mode==='listen')prompt=`<button class="speak" id="play">🔊 聽聽看</button><span class="hint">聽到的是哪一個？</span>`;
   else if(st.mode==='read')prompt=`${picHTML(it.w.pic)}<span class="z">${esc(it.w.zh)}</span><span class="hint">英文怎麼拼？</span>`;
+  else if(st.mode==='circle')prompt=`<button class="speak" id="play">🔊 聽聽看</button><span class="hint">聽到的是哪一個字？把它找出來</span>`;
+  else if(st.mode==='gap'){const ch=answered?`<b class="gapfill ${correct(it.opts[p])?'':'no'}">${esc(it.w.en[it.at])}</b>`:'<b class="gapbox">?</b>';
+    prompt=`<button class="speak" id="play">🔊 聽聽看</button><span class="gapword">${esc(it.w.en.slice(0,it.at))}${ch}${esc(it.w.en.slice(it.at+1))}</span><span class="z">${esc(it.w.zh)}</span><span class="hint">少了哪個字母？</span>`}
   else prompt=`<button class="speak" id="play">🔊</button><span class="q">${esc(it.q)}</span>`;
   const optHTML=(o,i)=>{
     let cls='opt';
     if(answered){if(correct(o))cls+=' right';else if(i===p)cls+=' wrong';else cls+=' dim'}
-    const inner=st.mode==='qa'?esc(o):st.mode==='listen'?`${picHTML(o.pic)}<span>${esc(o.en)}</span>`:`<span>${esc(o.en)}</span>`;
+    const inner=st.mode==='qa'?esc(o):st.mode==='gap'?`<span class="letter">${esc(o)}</span>`:st.mode==='listen'?`${picHTML(o.pic)}<span>${esc(o.en)}</span>`:`<span>${esc(o.en)}</span>`;
     return `<button class="${cls}" data-o="${i}" ${answered?'disabled':''}>${inner}</button>`;
   };
   const ok=answered&&correct(it.opts[p]);
   return `<div class="qhead"><h3>${esc(st.label)}</h3><span class="qnum">第 ${nav.sub+1} 題 / 共 ${items.length} 題</span>${masteryHTML(T)}</div>${tipHTML(st)}
   <div class="prompt">${prompt}</div>
-  <div class="opts" style="${st.mode==='qa'?'grid-template-columns:1fr':''}">${it.opts.map(optHTML).join('')}</div>
+  <div class="opts ${st.mode==='circle'?'opts3':st.mode==='gap'?'opts4':''}" style="${st.mode==='qa'?'grid-template-columns:1fr':''}">${it.opts.map(optHTML).join('')}</div>
   <div class="verdict ${answered?(ok?'ok':'no'):''}">${answered?(ok?'答對了！抓到一隻怪獸！':'差一點！綠色的才是正確答案，一起念一次。'):''}</div>
   ${answered?`<div class="row"><button class="big" id="nextq">${nav.sub<items.length-1?'下一題 →':'看成績'}</button></div>`:''}`;
 }
@@ -2234,6 +2276,7 @@ function writeHTML(T,st){
   // 孩子自己練習（沒連線）時，聽寫可以按「對答案」：出現英文，格子裡也出現淡灰色範字跟他寫的對照
   const selfChk=st.dict&&role==='kid'&&status!=='on',rev=selfChk&&revealed.has(k);
   if(st.dict)S.guide[k]=rev;   // 聽寫：平常沒有範字
+  if(st.trace)S.guide[k]=true;   // 描寫：範字一直開著
   const guide=S.guide[k]!==false;
   const showW=!st.dict||role==='mom'||!!S.stamped[k]||rev;   // 聽寫時孩子看不到英文，蓋章（或自己對答案）後才出現
   const w=T.words?T.words.find(x=>x.en===txt):T.groups?T.groups.flatMap(g=>g.words).find(x=>x.en===txt):null;
@@ -2242,7 +2285,7 @@ function writeHTML(T,st){
     <span style="flex:1"></span>${role==='mom'?'<button class="toggle stampbtn" id="stamp">👍 蓋章：寫得好</button>':selfChk?`<button class="toggle stampbtn selfchk ${rev?'on':''}" id="selfChk">${rev?'✏️ 再寫一次':'👀 對答案'}</button>`:'<span class="toggle stampbtn" style="visibility:hidden" aria-hidden="true">👍 蓋章：寫得好</span>'}<span id="stampState">${stampStateHTML(k)}</span></div>
   <div class="board-wrap"><canvas class="board" id="board" data-k="${k}"></canvas>
   <div class="pens">
-    ${st.dict?'':`<button class="toggle ${guide?'on':''}" id="guideBtn">${guide?'範字：開':'範字：關'}</button>`}
+    ${st.dict||st.trace?'':`<button class="toggle ${guide?'on':''}" id="guideBtn">${guide?'範字：開':'範字：關'}</button>`}
     <button class="toggle" id="undo">↶ 復原我的上一筆</button>
     <button class="toggle" id="clr">全部擦掉</button>
     <span class="legend"><i style="background:var(--pen-me)"></i>${esc(penKidLabel())}</span><span class="legend"><i style="background:var(--pen-mom)"></i>${PN()}</span>
@@ -2273,8 +2316,8 @@ function bindStep(U,T,st){
     const it=items[nav.sub];
     const play=$('#play');if(play)play.onclick=()=>sayShared(st.mode==='qa'?it.q:it.w.en);
     document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const v=+b.dataset.o;act({t:'pick',k:k+'-'+nav.sub,v});
-      const o=it.opts[v];if(st.mode!=='qa')sayShared(o.en);
-      const right=st.mode==='qa'?o===it.ans:o===it.w;
+      const o=it.opts[v];if(st.mode==='gap')sayShared(it.w.en);else if(st.mode!=='qa')sayShared(o.en);
+      const right=quizRight(st,it,o);
       if(right)award(`q|${tid}|${nav.s}|${st.mode==='qa'?it.q:it.w.en}`);
       if(nav.sub===items.length-1){const sc=quizScore(T,st);
         logEv(`測驗：${U.en} ${T.title}「${st.label}」${sc}/${items.length}`);
@@ -2579,7 +2622,7 @@ const pageW=()=>{const p=document.getElementById('page');return (p&&p.getBoundin
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-17b';
+const APP_VER='2026-11-19a';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
