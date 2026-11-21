@@ -709,7 +709,7 @@ const STEP_DEFS = {
     {type:'dialog',label:'聽說句型',min:4,tip:'<b>帶法：</b>先按泡泡聽一次。再分角色：你念 A，他念 B；然後交換。'},
     {type:'build',label:'排排看',min:4,tip:'<b>帶法：</b>讓他自己按字卡排出句子，排好後一起念一遍。'},
     {type:'quiz',mode:'qa',label:'怎麼回答？',min:3,tip:'<b>帶法：</b>你念問句，他選回答，再請他把回答念出來。'},
-    {type:'write',label:'寫句子',min:4,items:t.write,tip:'<b>帶法：</b>提醒他：開頭字母大寫、句尾要有 . 或 ?，字和字之間要空一格。'}]
+    {type:'write',label:'聽寫句子',dict:true,min:4,items:t.write,tip:'<b>帶法：</b>這是聽寫：按 🔊 讓他聽整句（你也可以自己念），他看不到句子，憑記憶寫。提醒他：開頭字母大寫、字和字之間空一格、句尾要有 . 或 ?。寫完你用紅筆圈出要修正的地方，蓋章後他才會看到正確的句子。'}]
 };
 HANLIN5A.forEach(u=>u.topics.forEach(t=>t.steps=STEP_DEFS[t.kind](t)));
 
@@ -2229,10 +2229,55 @@ function dialogHTML(T,st){
   <div><div class="hint" style="margin-bottom:6px">這課的日常用語</div><div class="phrases">${T.phrases.map((p,i)=>`<button class="phrase" data-say="${esc(p[0])}" data-hk="${k}-p${i}">${esc(p[0])}<small>${esc(p[1])}</small></button>`).join('')}</div></div>`;
 }
 /* 測驗 */
+/* 每回合換字：把句子裡這一課的單字，換成同一課的其他單字（星期、科目、地點、動物、數字、顏色、文具）。
+   用在「怎麼回答？」「排排看」「聽寫句子／描句子」，題目才不會每次都一模一樣。
+   例如 Is it Monday today? → Is it Thursday today?；How many monkeys…? → How many zebras…?
+   大約三分之一的時候保留原句。換得不順（例如中文對不上）就用原句。 */
+function unitVocab(){const U=UNITS[nav.u];if(!U)return [];
+  return U.topics.filter(T=>T.kind==='vocab').flatMap(T=>T.words.map(w=>({en:w.en.replace(/^(a|an) /i,''),zh:w.zh})))}
+function vocabSwap(texts,seed){
+  const vv=unitVocab(),words=[...new Set(vv.map(v=>v.en))];
+  if(words.length<3||hash(seed+'keep')%3===0)return null;
+  const esc2=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const re=new RegExp('\\b('+words.slice().sort((a,b)=>b.length-a.length).map(esc2).join('|')+')(s?)\\b','g');
+  const found=[];texts.forEach(t=>{let m;re.lastIndex=0;while((m=re.exec(t)))if(!found.includes(m[1]))found.push(m[1])});
+  if(!found.length)return null;
+  const pick=shuffle(words,seed+'w');const map={};found.forEach((w,i)=>map[w]=pick[i%pick.length]);
+  if(new Set(Object.values(map)).size<found.length)return null;   // 兩個不同的字不能換成同一個
+  if(found.every(w=>map[w]===w))return null;
+  const sub=t=>t.replace(re,(m,w,pl)=>map[w]+pl).replace(/\b(a|an) ([A-Za-z])/g,(m,art,c)=>(/[aeiou]/i.test(c)?(art[0]==='A'?'An':'an'):(art[0]==='A'?'A':'a'))+' '+c);
+  // 中文跟著換：單字的中文（去掉「一枝、一本…」）要在中文句子裡找得到
+  const zhOf=w=>{const v=vv.find(x=>x.en===w);return v?v.zh:''};
+  const bare=z=>z.replace(/^一[個枝支本塊把隻張]/,'');
+  const subZh=z=>{if(!z)return '';let out=z;for(const w of found){if(map[w]===w)continue;const a=zhOf(w),b=zhOf(map[w]);
+      if(a&&out.includes(a))out=out.split(a).join(b);else if(a&&out.includes(bare(a)))out=out.split(bare(a)).join(bare(b));else return null}return out};
+  return {sub,subZh};
+}
+function qaVariant(q,seed){
+  const sw=vocabSwap([q[0],q[1]],seed);if(!sw)return q;
+  const Q=sw.sub(q[0]),A=sw.sub(q[1]);
+  if(q[2].includes(A)||Q===A)return q;   // 錯的選項不換；換完跟錯的選項撞到就用原題
+  return [Q,A,q[2]];
+}
+// 句子換字（排排看、聽寫句子、描句子）：回傳英文和中文
+function sentVariant(T,en,seed){
+  const zh=sentenceZh(T,en);const sw=vocabSwap([en],seed);if(!sw)return {en,zh};
+  const z2=sw.subZh(zh);if(zh&&z2==null)return {en,zh};
+  return {en:sw.sub(en),zh:z2||''};
+}
+// 寫字題這一格要寫什麼：聽寫的順序每天打亂，句子會換字；怪獸和蓋章還是記在原本那一題
+function writePlan(T,st){
+  const n=st.items.length,i=Math.min(nav.sub,n-1),sd=roundSeed(key());
+  const oi=st.dict?shuffle([...Array(n).keys()],sd+'ord')[i]:i;
+  const orig=st.items[oi];
+  const v=T.kind==='pattern'?sentVariant(T,orig,sd+'s'+oi):{en:orig,zh:''};
+  return {i,oi,txt:v.en,zh:v.zh};
+}
+const buildSent=(T,i)=>sentVariant(T,T.build[i],roundSeed(key())+'b'+i).en;
 function quizItems(T,st){
   const k=key();
   const sd=roundSeed(k);
-  if(st.mode==='qa')return shuffle(T.qa,sd+'q').map((q,i)=>({q:q[0],ans:q[1],opts:shuffle([q[1],...q[2]],sd+'o'+i)}));
+  if(st.mode==='qa')return shuffle(T.qa,sd+'q').map((q,i)=>{const v=qaVariant(q,sd+'v'+i);return {q:v[0],ans:v[1],base:q[0],opts:shuffle([v[1],...v[2]],sd+'o'+i)}});
   const pool=T.kind==='phonics'?T.groups.flatMap(g=>g.words):T.words;
   let list;
   if(T.kind==='vocab'){
@@ -2298,7 +2343,7 @@ function quizHTML(T,st){
 /* 排句子 */
 function tilesOf(s){return s.split(' ')}
 function buildHTML(T,st){
-  const k=key(),list=T.build,i=Math.min(nav.sub,list.length-1),sent=list[i];
+  const k=key(),list=T.build,i=Math.min(nav.sub,list.length-1),sent=buildSent(T,i);
   const tiles=tilesOf(sent),order=shuffle(tiles.map((_,j)=>j),roundSeed(k)+'b'+i);
   const tk=k+'-'+i,picked=S.tiles[tk]||[];
   const full=picked.length===tiles.length;
@@ -2313,8 +2358,16 @@ function buildHTML(T,st){
 /* 寫字板 */
 const revealed=new Set();   // 孩子自己練習時「對答案」打開過的聽寫格（只在這台）
 function stampStateHTML(bk){return S.stamped[bk]?'<span class="stamped">💮 '+PN()+'蓋過章了</span>':''}
+// 從對話和常用句找出句子的中文
+const EXTRA_ZH={'Do you have math class?':'你有數學課嗎？','Does he have PE class?':'他有體育課嗎？','No, he doesn\'t.':'不，他沒有。',
+  'I\'m going to the bank.':'我要去銀行。','There are nine lions.':'有九隻獅子。','She likes zebras.':'她喜歡斑馬。'};
+function sentenceZh(T,en){
+  for(const d of T.dialog||[]){if(d[0]===en)return d[1];if(d[2]===en)return d[3]}
+  for(const p of T.phrases||[])if(p[0]===en)return p[1];
+  return EXTRA_ZH[en]||'';
+}
 function writeHTML(T,st){
-  const items=st.items,i=Math.min(nav.sub,items.length-1),k=key(i),txt=items[i];
+  const items=st.items,wp=writePlan(T,st),i=wp.i,k=key(wp.oi),txt=wp.txt;
   // 孩子自己練習（沒連線）時，聽寫可以按「對答案」：出現英文，格子裡也出現淡灰色範字跟他寫的對照
   const selfChk=st.dict&&role==='kid'&&status!=='on',rev=selfChk&&revealed.has(k);
   if(st.dict)S.guide[k]=rev;   // 聽寫：平常沒有範字
@@ -2322,8 +2375,9 @@ function writeHTML(T,st){
   const guide=S.guide[k]!==false;
   const showW=!st.dict||role==='mom'||!!S.stamped[k]||rev;   // 聽寫時孩子看不到英文，蓋章（或自己對答案）後才出現
   const w=T.words?T.words.find(x=>x.en===txt):T.groups?T.groups.flatMap(g=>g.words).find(x=>x.en===txt):null;
+  const sz=w?'':wp.zh;   // 句子的中文：聽寫句子時孩子看中文、聽英文
   return `<h3>${esc(st.label)}</h3>${tipHTML(st)}
-  <div class="board-target"><button class="speak" id="play" style="height:52px">🔊</button><span class="w"${showW?'':' style="visibility:hidden"'}>${esc(txt)}</span>${w?`<span class="z">${esc(w.zh)}</span>`:''}${st.dict&&!S.stamped[k]&&!rev?`<span class="hint" style="margin-left:6px${role==='mom'?'':';visibility:hidden'}">（孩子看不到）</span>`:''}
+  <div class="board-target"><button class="speak" id="play" style="height:52px">🔊</button>${sz?`<span class="z" style="font-size:22px;margin-right:10px">${esc(sz)}</span>`:''}<span class="w"${showW?'':' style="visibility:hidden"'}>${esc(txt)}</span>${w?`<span class="z">${esc(w.zh)}</span>`:''}${st.dict&&!S.stamped[k]&&!rev?`<span class="hint" style="margin-left:6px${role==='mom'?'':';visibility:hidden'}">（孩子看不到）</span>`:''}
     <span style="flex:1"></span>${role==='mom'?'<button class="toggle stampbtn" id="stamp">👍 蓋章：寫得好</button>':selfChk?`<button class="toggle stampbtn selfchk ${rev?'on':''}" id="selfChk">${rev?'✏️ 再寫一次':'👀 對答案'}</button>`:'<span class="toggle stampbtn" style="visibility:hidden" aria-hidden="true">👍 蓋章：寫得好</span>'}<span id="stampState">${stampStateHTML(k)}</span></div>
   <div class="board-wrap"><canvas class="board" id="board" data-k="${k}"></canvas>
   <div class="pens">
@@ -2360,14 +2414,14 @@ function bindStep(U,T,st){
     document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const v=+b.dataset.o;act({t:'pick',k:k+'-'+nav.sub,v});
       const o=it.opts[v];if(st.mode==='gap')sayShared(it.w.en);else if(st.mode!=='qa')sayShared(o.en);
       const right=quizRight(st,it,o);
-      if(right)award(`q|${tid}|${nav.s}|${st.mode==='qa'?it.q:it.w.en}`);
+      if(right)award(`q|${tid}|${nav.s}|${st.mode==='qa'?(it.base||it.q):it.w.en}`);   // 換字的題目還是算原本那題的怪獸
       if(nav.sub===items.length-1){const sc=quizScore(T,st);
         logEv(`測驗：${U.en} ${T.title}「${st.label}」${sc}/${items.length}`);
         if(sc===items.length&&grantBadge('perfect'))progChanged()}});
     const nq=$('#nextq');if(nq)nq.onclick=()=>go({sub:nav.sub+1});
   }
   if(st.type==='build'){
-    const i=Math.min(nav.sub,T.build.length-1),tk=k+'-'+i,sent=T.build[i];
+    const i=Math.min(nav.sub,T.build.length-1),tk=k+'-'+i,sent=buildSent(T,i);
     $('#play').onclick=()=>sayShared(sent);
     document.querySelectorAll('.pool .tile').forEach(b=>b.onclick=()=>{const j=+b.dataset.t,cur=S.tiles[tk]||[];if(cur.includes(j))return;
       const nv=cur.concat(j);act({t:'tiles',k:tk,v:nv});
@@ -2377,7 +2431,7 @@ function bindStep(U,T,st){
     const nb=$('#nextb');if(nb)nb.onclick=()=>go({sub:i+1});
   }
   if(st.type==='write'){
-    const i=Math.min(nav.sub,st.items.length-1),bk=key(i),word=st.items[i];
+    const wp=writePlan(T,st),i=wp.i,bk=key(wp.oi),word=wp.txt;
     $('#play').onclick=()=>sayShared(word);
     if($('#guideBtn'))$('#guideBtn').onclick=()=>act({t:'guide',k:bk,v:S.guide[bk]===false});
     $('#undo').onclick=()=>{const mine=(S.boards[bk]||[]).filter(s=>s.id.startsWith(myTag()));if(mine.length)act({t:'undo',k:bk,id:mine[mine.length-1].id})};
@@ -2397,7 +2451,7 @@ function bindStep(U,T,st){
     $('#pv').onclick=()=>go({sub:i-1});
     $('#nx').onclick=()=>go({sub:i+1});
     const sb=$('#stamp');
-    if(sb)sb.onclick=()=>{const sk=`s|${tid}|${nav.s}|${i}`;act({t:'stamp',k:bk,sk});
+    if(sb)sb.onclick=()=>{const sk=`s|${tid}|${nav.s}|${wp.oi}`;act({t:'stamp',k:bk,sk});
       const fresh=award(sk,''+PN()+'說寫得好！');
       if(fresh)logEv(`${PN()}蓋章：${word}`);
       if(word==='Wednesday'&&grantBadge('wed'))progChanged()};
@@ -2664,7 +2718,7 @@ const pageW=()=>{const p=document.getElementById('page');return (p&&p.getBoundin
    - 平板從休眠/背景回來時，有新版就馬上換
    - 開著的時候每 1 分鐘看一次；只要 10 秒沒碰畫面就換（寫字寫到一半不會換）
    - 換之前把目前的畫面（第幾課第幾步、寫的字、選的答案、捲到哪）記下來，換好後回到原畫面 */
-const APP_VER='2026-11-19d';
+const APP_VER='2026-11-21d';
 let newVer=null,lastTouch=Date.now();
 document.addEventListener('pointerdown',()=>{lastTouch=Date.now()},{capture:true});
 document.addEventListener('keydown',()=>{lastTouch=Date.now()},{capture:true});
